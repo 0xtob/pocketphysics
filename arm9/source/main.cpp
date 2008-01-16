@@ -61,7 +61,7 @@ bool framedone = false;
 
 UL_IMAGE *imgbg;
 
-Fixed timeStep = Fixed(1) / Fixed(20);
+float32 timeStep = float32(1) / float32(20);
 
 u16 *main_vram = (u16*)BG_BMP_RAM(2);
 u16 *sub_vram = (u16*)BG_BMP_RAM_SUB(2);
@@ -473,8 +473,8 @@ void updateGravity()
 	int Xaccel = motion_read_x(); // this returns a value between 0 and 4095
 	int Yaccel = motion_read_y(); // this returns a value between 0 and 4095
 	
-	Fixed xgrav = (float)((Xaccel - motion_x_offset) * 35) / 1638.0f;
-	Fixed ygrav = (float)((Yaccel - motion_y_offset) * 35) / 1638.0f;
+	float32 xgrav = (float)((Xaccel - motion_x_offset) * 35) / 1638.0f;
+	float32 ygrav = (float)((Yaccel - motion_y_offset) * 35) / 1638.0f;
 	
 	world->setGravity(-xgrav, ygrav);
 }

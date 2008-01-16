@@ -56,11 +56,11 @@ void Polygon::getVertex(int index, int *_x, int *_y, bool relative)
 		if(!b2body)
 		{
 			b2Vec2 pos;
-			pos.x = Fixed(vertices_x[index]);
-			pos.y = Fixed(vertices_y[index]);
+			pos.x = float32(vertices_x[index]);
+			pos.y = float32(vertices_y[index]);
 			
 			b2Mat22 rot;
-			rot.Set(Fixed(rotation));
+			rot.Set(float32(rotation));
 			pos = b2Mul(rot, pos);
 			
 			*_x = (int)pos.x + x;
@@ -70,8 +70,8 @@ void Polygon::getVertex(int index, int *_x, int *_y, bool relative)
 		{
 			// TODO: Cache vertex positions for fixed shapes!
 			b2Vec2 pos;
-			pos.x = Fixed(vertices_x[index]);
-			pos.y = Fixed(vertices_y[index]);
+			pos.x = float32(vertices_x[index]);
+			pos.y = float32(vertices_y[index]);
 			
 			b2Mat22 rot = b2body->GetRotationMatrix();
 			pos = b2Mul(rot, pos);

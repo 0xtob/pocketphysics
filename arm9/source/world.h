@@ -12,7 +12,7 @@
 #define DEFAULT_FRICTION	0.3f
 #define DEFAULT_RESTITUTION	0.2f
 
-#define TIMESTEP			(Fixed(1.0f / 30.0f))
+#define TIMESTEP			(float32(1.0f / 30.0f))
 #define ITERATIONS			3//6
 
 class World
@@ -48,11 +48,11 @@ class World
 		int getNThings(void);
 		Thing *getThing(int index);
 		void getDimensions(int *_width, int *_height);
-		void getGravity(Fixed *grav_x, Fixed *grav_y);
-		void setGravity(Fixed grav_x, Fixed grav_y);
+		void getGravity(float32 *grav_x, float32 *grav_y);
+		void setGravity(float32 grav_x, float32 grav_y);
 		
 		// do a simulation step
-		void step(Fixed timestep = TIMESTEP);
+		void step(float32 timestep = TIMESTEP);
 		
 		void reset(void);
 		
@@ -60,7 +60,7 @@ class World
 		Thing* things[MAX_THINGS];
 		int n_things;
 		int width, height;
-		Fixed gravity_x, gravity_y;
+		float32 gravity_x, gravity_y;
 		
 		b2World *b2world;
 		

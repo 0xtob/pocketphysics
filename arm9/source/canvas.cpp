@@ -214,6 +214,8 @@ void Canvas::penDown(int x, int y)
 					world->pin(pin, things[0], things[1]); // Pins the objects to each other
 				world->add(pin);
 			}
+			else
+				printf("nothing picked!\n");
 			break;
 		}
 		
@@ -334,7 +336,7 @@ void Canvas::penMove(int x, int y)
 			
 			int px, py;
 			circle->getPosition(&px, &py);
-			int radius = (int)Fixed((x - px)*(x - px) + (y - py)*(y - py)).sqrt();
+			int radius = (int)b2Sqrt(float32((x - px)*(x - px) + (y - py)*(y - py)));
 			circle->setRadius(radius);
 		}
 		break;
@@ -534,9 +536,9 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	
 	// Alpha: Moves the line texture inside the shape, so lines don't fully overlap when
 	// obejcts collide
-	Fixed alpha = Fixed(1.3);
+	float32 alpha = float32(1.3);
 	b2Vec2 od1 = alpha * od;
-	b2Vec2 od2 = (Fixed(2)-alpha) * od;
+	b2Vec2 od2 = (float32(2)-alpha) * od;
 	
 	ulDrawImageQuad(crayon,
 			x1+(int)od1.x, y1+(int)od1.y,

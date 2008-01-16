@@ -24,13 +24,13 @@ void Thing::setPosition(int _x, int _y)
 	if(b2body)
 	{
 		b2Vec2 origin;
-		origin.x = Fixed(_x)/Fixed(10);
-		origin.y = Fixed(_y)/Fixed(10);
+		origin.x = float32(_x)/float32(10);
+		origin.y = float32(_y)/float32(10);
 		
 		if(b2body->IsFrozen())
 			printf("cannot set position: body is frozen\n");
 		
-		b2body->SetOriginPosition(origin, Fixed(rotation));
+		b2body->SetOriginPosition(origin, float32(rotation));
 	}
 }
 
@@ -67,13 +67,13 @@ void Thing::setRotation(float _rotation)
 	if(b2body)
 	{
 		b2Vec2 origin;
-		origin.x = Fixed(x)/Fixed(10);
-		origin.y = Fixed(y)/Fixed(10);
+		origin.x = float32(x)/float32(10);
+		origin.y = float32(y)/float32(10);
 		
 		if(b2body->IsFrozen())
 			printf("cannot set position: body is frozen\n");
 		
-		b2body->SetOriginPosition(origin, Fixed(rotation));
+		b2body->SetOriginPosition(origin, float32(rotation));
 	}
 }
 

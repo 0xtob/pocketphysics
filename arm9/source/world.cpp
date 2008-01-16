@@ -54,12 +54,14 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 		int px, py;
 		pin->getPosition(&px, &py);
 		b2Vec2 pinpos;
-		pinpos.x = Fixed(px) / Fixed(10);
-		pinpos.y = Fixed(py) / Fixed(10);
-		//jointDef->anchorPoint = pinpos;
-		jointDef->localAnchor1 = pinpos;
+		pinpos.x = float32(px) / float32(10);
+		pinpos.y = float32(py) / float32(10);
 		
-		b2Joint* joint = b2world->CreateJoint(jointDef);
+		//jointDef->localAnchor1 = pinpos;
+		//jointDef->localAnchor2 = pinpos;
+		jointDef->SetInWorld(pinpos);
+		
+		b2Joint* joint = b2world->Create(jointDef);
 		pin->setb2Joint(joint);
 		
 		//b2Vec2 a1 = pin->getb2Joint()->GetAnchor1();
@@ -172,7 +174,6 @@ void World::makePhysical(Thing *thing)
 			{
 				Polygon *polygon = (Polygon*)thing;
 				
-				//b2PolyDef *polyDef = new b2PolyDef();
 				b2PolygonDef *polyDef = new b2PolygonDef();
 				
 				int n_points = polygon->getNVertices();
@@ -186,18 +187,15 @@ void World::makePhysical(Thing *thing)
 				polyDef->friction = DEFAULT_FRICTION;
 				polyDef->restitution = DEFAULT_RESTITUTION;
 				
-				//polyDef->categoryBits = 0x0002;
-				//polyDef->maskBits = 0x0002;
-				
-				Fixed *points_x = new Fixed[n_points];
-				Fixed *points_y = new Fixed[n_points];
+				float32 *points_x = new float32[n_points];
+				float32 *points_y = new float32[n_points];
 				
 				int vx, vy;
 				for(int i=0;i<n_points;++i)
 				{
 					polygon->getVertex(i, &vx, &vy, true);
-					points_x[i] = Fixed(vx)/Fixed(10);
-					points_y[i] = Fixed(vy)/Fixed(10);
+					points_x[i] = float32(vx)/float32(10);
+					points_y[i] = float32(vy)/float32(10);
 				}
 				  
 				b2Polygon *pgon = new b2Polygon(points_x, points_y, n_points);
@@ -207,12 +205,12 @@ void World::makePhysical(Thing *thing)
 				
 				int posx, posy;
 				polygon->getPosition(&posx, &posy);
-				bodyDef->position.Set(Fixed((float)posx/10.0f), Fixed((float)posy/10.0f));
-				bodyDef->rotation = polygon->getRotation();
+				bodyDef->position.Set(float32((float)posx/10.0f), float32((float)posy/10.0f));
+				bodyDef->angle = polygon->getRotation();
 				
-				b2PolyDef* deleteMe = DecomposeConvexAndAddTo(pgon, bodyDef, polyDef);
+				b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
 				
-				b2Body* body = b2world->CreateBody(bodyDef);
+				b2Body* body = b2world->Create(bodyDef);
 				
 				polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
 				
@@ -222,7 +220,7 @@ void World::makePhysical(Thing *thing)
 				  
 				delete points_x;
 				delete points_y;
-					
+				
 				delete pgon;
 				
 				if(!body)
@@ -235,7 +233,7 @@ void World::makePhysical(Thing *thing)
 				Circle *circle = (Circle*)thing;
 				
 				b2CircleDef *circledef = new b2CircleDef();
-				circledef->radius = Fixed(circle->getRadius()) / Fixed(10);
+				circledef->radius = float32(circle->getRadius()) / float32(10);
 				
 				if( (circle->getType() == Thing::Solid) || (circle->getType() == Thing::NonSolid) )
 					circledef->density = 0.0f;
@@ -250,12 +248,12 @@ void World::makePhysical(Thing *thing)
 				
 				int posx, posy;
 				circle->getPosition(&posx, &posy);
-				bodydef->position.Set(Fixed((float)posx/10.0f), Fixed((float)posy/10.0f));
-				bodydef->rotation = circle->getRotation();
+				bodydef->position.Set(float32((float)posx/10.0f), float32((float)posy/10.0f));
+				bodydef->angle = circle->getRotation();
 				
-				bodydef->AddShape(circledef);
+				bodydef->AddShape(b2world->Create(circledef));
 				
-				b2Body* body = b2world->CreateBody(bodydef);
+				b2Body* body = b2world->Create(bodydef);
 				
 				circle->setb2Body(body);
 				
@@ -291,11 +289,11 @@ void World::makeUnphysical(Thing *thing)
 		if(thing->getb2Body() == 0)
 			return;
 		
-		b2world->DestroyBody(thing->getb2Body());
+		b2world->Destroy(thing->getb2Body());
 		thing->setb2Body(0);
 	}
 	
-	b2world->Step(Fixed(0), 0);
+	b2world->Step(float32(0), 0);
 }
 
 int World::getNThings(void)
@@ -315,22 +313,22 @@ void World::getDimensions(int *_width, int *_height)
 	*_height = height;
 }
 
-void World::getGravity(Fixed *grav_x, Fixed *grav_y)
+void World::getGravity(float32 *grav_x, float32 *grav_y)
 {
 	*grav_x = gravity_x;
 	*grav_y = gravity_y;
 }
 
-void World::setGravity(Fixed grav_x, Fixed grav_y)
+void World::setGravity(float32 grav_x, float32 grav_y)
 {
 	gravity_x = grav_x;
 	gravity_y = grav_y;
 	
 	b2Vec2 grav(gravity_x, gravity_y);
-	b2world->setGravity(grav);
+	b2world->SetGravity(grav);
 }
 
-void World::step(Fixed timestep)
+void World::step(float32 timestep)
 {
 	// TODO: Delete objects that move out of the screen
 	b2world->Step(timestep, ITERATIONS);
@@ -379,18 +377,14 @@ void World::initPhysics(void)
 
 void World::makeJointDummy(void)
 {
-	b2BoxDef *gd = new b2BoxDef();
-    gd->type = e_boxShape;
-    gd->extents.Set(0.1f, 0.1f);
+	b2PolygonDef *gd = new b2PolygonDef();
+    gd->SetAsBox(0.1f, 0.1f);
     gd->density = 0;
-    //gd->categoryBits = 0x0004;
-    //gd->maskBits = 0x0004;
     
     b2BodyDef *bd = new b2BodyDef();
     bd->position.Set(-10.0f, -10.0f);
-    //bd->position.Set(30.0f, 30.0f);
-    bd->AddShape(gd);
-    bgbody = b2world->CreateBody(bd);
+    bd->AddShape(b2world->Create(gd));
+    bgbody = b2world->Create(bd);
     
     delete gd;
     delete bd;
@@ -398,6 +392,6 @@ void World::makeJointDummy(void)
 
 void World::destroyJointDummy(void)
 {
-	b2world->DestroyBody(bgbody);
+	b2world->Destroy(bgbody);
 	bgbody = 0;
 }
