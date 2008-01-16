@@ -1,0 +1,6 @@
+since 0.1
+---------
+- pins! (pin to background or pin two objects together)
+- standby
+- numerical fixes in box2d
+- moved from dynamic to static timestep => subjectively slower, but 100% reproducable

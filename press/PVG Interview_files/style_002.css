@@ -1,0 +1,334 @@
+/*
+Theme Name: Dark Ritual
+Theme URI: http://www.kaushalsheth.com
+Version: 1.0
+Description:  Tribal-style three column layout.
+Author: Kaushal Sheth
+Author URI: http://www.kaushalsheth.com
+*/
+
+
+
+/*#############################################################
+Name: Dark Ritual
+Date: 2006-11-06
+Description: Tribal-style three column layout.
+Author: Viktor Persson
+URL: http://templates.arcsin.se
+
+Feel free to use and modify but please provide credits.
+#############################################################*/
+
+/* standard elements */
+* {
+	margin: 0;
+	padding: 0;
+}
+
+a {color: #682;}
+
+a:hover {color: #666;}
+
+
+body {
+	background: #999 url(img/test1.PNG);
+	color: #000;
+        font-size: 8px;
+        letter-spacing: 0.3pt;
+length: 0.5px;
+	font: normal 80%  verdana, sans-serif;
+line-height: 1.4;
+	margin: 2% 2%;
+}
+
+p,ul {
+	padding-bottom: 1em;
+}
+
+ul {margin-left: 1.2em;}
+
+.main_right li {list-style: none; font-size: 0.8em;}
+/*.main li {list-style-image: url(img/li.gif);}*/
+
+h1 {font-size: 1.5em;}
+h2 {font-size: 1.5em;}
+
+blockquote {
+	background: #DDDDEE;
+	border-bottom: 1px solid #CCC;
+	border-top: 1px solid #CCC;
+	color: #111;
+	display: block;
+        line-height: 1.3;
+	font-size: 0.9em;
+	margin-bottom: 1.2em;
+	padding: 6px 12px;
+}
+blockquote p {padding: 3px 0;}
+
+h1,h2,h3,h4 {color: #994;}
+
+/* misc */
+.clearer {clear: both;}
+.main_right .padded {padding: 6px 2px 6px 12px;}
+.main .padded {padding: 18px 18px;}
+.meta {font-size: 1.0em; color: #666;}
+.left {float: left;}
+.right {float: right;}
+
+
+
+/* structure */
+.container {
+
+_height: 100%;
+min-height:100%;
+	font-size: 1em;
+        color: #111;
+	background:url(img/bgcont.gif) repeat-y left top;
+	margin:  0 auto;
+        width: 900px;
+	border: 12px solid #222;
+}
+.clearfix:after {
+content: "."; 
+display: block; 
+height: 0; 
+clear: both; 
+visibility: hidden;
+}
+
+/* Hides from IE-mac \*/
+* html .clearfix {height: 1%;}
+/* End hide from IE-mac */
+
+
+
+/* header */
+.header {
+	float: left;
+	width: 640px;
+	background: url(img/header.jpg) no-repeat;
+	font: normal 0.8em Verdana,sans-serif;
+	line-height: 150px;
+        color: black;
+	text-align: right;
+	
+
+}
+
+/* structure */
+.top {
+	background: #999;
+	color: #DDD;
+	float: left;
+	font: normal 1.4em Verdana,sans-serif;
+	height: 50px;
+	text-align: center;
+	width: 699px;
+}
+.subnav {
+	float: left;
+font: normal verdana, sans-serif;
+font-weight: 500;
+	width: 160px;
+       
+}
+.main {
+        float: left;
+        width: 510px;
+      
+}
+
+.main_right {
+	float: right;
+	width: 230px;
+	color: #CCC;
+}
+
+
+
+
+/* sub-navigation */
+.subnav h1 {
+	background: #222;
+	color: #FFE;
+	font: bold 1.1em Verdana,sans-serif;
+	line-height: 24px;
+	padding-left: 8px;
+}
+.subnav ul {margin: 0; padding: 0;}
+.subnav li {
+        font-size: 0.9em;
+	border-bottom: 1px solid #696755;
+	list-style: none;
+}
+.subnav li a {
+	background: #89866F;	
+	color: #111;
+	display: block;
+	padding: 8px 0 8px 12px;
+	width: 148px;
+	text-decoration: none;
+}
+.subnav li a:hover {
+	background: #8888FF; 
+	color: #000;
+}
+
+/* footer */
+.footer {
+	background: url(img/bgfooter.gif) repeat-x;
+	color: #CCC;
+	font-size: 0.8em;
+	line-height: 39px;
+	width: 100%;
+	text-align: center;
+}
+.footer .left,.footer .right {padding: 0px 16px;}
+.footer a {color: #EEE;}
+.footer a:hover {color: #FAFCB0;}
+
+.post{margin:0 0 30px 0;}
+
+.post .info{
+padding:2px 3px 3px 8px;
+border:1px solid #e3e4e4;
+background-color:#f5f5f5;
+font-size:0.9em;
+color:#505050;
+}
+
+
+/* Comments Styling */
+#commentlist li {
+margin-bottom: 1em;
+padding-bottom: 2em;
+border-bottom: 1px solid #700000;
+
+}
+
+ol.commentlist {
+margin-bottom: 1em;
+margin-top: 1em;
+padding-top: 1em;
+
+list-style-type: none;
+}
+
+li.graybox {
+        background-color: #DFE4F8;
+margin-bottom: 1em;
+
+padding-top: 1em;
+padding-left: 0.5em;
+        }
+
+.commentnumber {
+        font: Italic 15px , Verdana, serif;
+        margin-top: 5px;
+        float:right;
+        color: #999999;
+        font-size: 18pt;
+        }
+
+#commentform {
+margin: 1em 0;
+background: #F7F7F7;
+width: 280px;
+}
+
+#commentform textarea {
+background: #f8f7f6;
+border: 1px solid #d6d3d3;
+width: 280px;
+}
+#commentform textarea:hover {
+background: #FFFFFF;
+border: 1px solid #d6d3d3;
+}
+#commentform textarea:focus {
+background: #ffffff;
+border: 1px solid #939793;
+}
+
+#commentform #email, #commentform #author, #commentform #url {
+font-size: 1.1em;
+background: #f8f7f6;
+border: 1px solid #d6d3d3;
+width: 280px;
+}
+#commentform #email:hover, #commentform #author:hover, #commentform #url:hover {
+font-size: 1.1em;
+background: #ffffff;
+border: 1px solid #d6d3d3;
+width: 280px;
+}
+#commentform #email:focus, #commentform #author:focus, #commentform #url:focus {
+font-size: 1.1em;
+background: #ffffff;
+border: 1px solid #939793;
+width: 280px;
+}
+#commentform input{
+margin-bottom: 3px;
+}
+
+
+.post ul li
+{
+list-style:square;
+margin-left:28px;
+padding:5px;
+}
+
+.entry ol li
+{
+padding:5px;
+list-type:decimal;
+margin-left:22px;
+}
+
+.main_right a:link, a:visited {
+	color: #000099;
+}
+.main_right a:link,.main_right a:visited{
+	color: #999999;
+	text-decoration: none;
+}
+
+.main_right ul {
+	padding: 0;
+}
+.main_right ul li a:link,.main_right ul li a:visited{
+	display: block;
+}
+.main_right ul li:hover{
+	background: #333333;
+}
+.main_right ul li {
+padding: 5px 0;
+}
+.main_right ul {
+	margin: 0;
+}
+
+a {
+color: #000099;
+}
+h2 {
+font-size: 1.4em;
+}
+
+h1,h2,h3 {
+color: #000099;
+font: Verdana,sans-serif;
+}
+
+
+h4 {
+color: #FFFF66;
+font: Verdana,sans-serif;
+font-size: 0.9em;
+font-style: italic;
+}

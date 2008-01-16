@@ -1,0 +1,17 @@
+td {font-family: Arial, sans-serif;font-size: 8pt;}
+.mnbdy {background-color: #F4F6FA;padding: 2px;margin:0px;}
+.fmbdy {background-color: #F4F6FA;padding: 2px;margin:0px;}
+A:link {text-decoration: none;color: #0067A9;}
+A:visited {text-decoration: none;color: #0067A9;}
+A:active {text-decoration: underline;color: #000000;}
+A:hover {text-decoration: underline;color: #000000;}
+.hbtbl {table-layout:fixed;word-wrap:break-word;overflow:hidden;}
+.stxt {color: #2D4063;}
+.stxt2 {background-color: #DBE2ED;color: #2D4063;}
+.dtxt {color: #889AB6;font-size: 7pt;text-align: right;}
+.dtxt2 {color: #889AB6;font-size: 7pt;text-align: right;}
+.cfrm {margin-bottom: 0px;}
+.frmtb {padding-left: 3px;padding-right: 3px;font-family: Arial, sans-serif;font-size: 8pt;background-color: #DBE2ED;border: #2D4063 1px solid;color: #2D4063;margin: 1px 2px 1px 2px;}
+.frmbtn {font-family: Arial, sans-serif;font-size: 8pt;background-color: #889AB6;border: #2D4063 1px solid;color: #2D4063;font-weight: bold;padding-left: 3px;padding-right:3px;vertical-align:top;margin: 2px 2px 2px 2px;}
+.lnk {color: #0067A9;}
+.pic {width: 45px; height: 45px; margin-left: -2px;margin-right:0px;padding-right:2px; float: left;}
