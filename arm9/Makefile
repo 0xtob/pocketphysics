@@ -16,7 +16,6 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 BUILD		:=	build
 SOURCES		:=	source source/tobkit
-#INCLUDES	:=	include ../../box2d_fixed/include
 INCLUDES       :=      include ../box2d/Include
 DATA		:=	data
 
@@ -41,7 +40,7 @@ LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -mno-fpu -Wl,-Map,$(notdir $*.map)
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lbox2d -lfat -lul -lpng -lz -lnds9
+LIBS	:= -lbox2d2 -lfat -lul -lpng -lz -lnds9
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
