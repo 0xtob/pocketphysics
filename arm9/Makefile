@@ -28,7 +28,7 @@ ARCH	:=	-mthumb -mthumb-interwork
 CFLAGS	:=	-g -Wall -O2\
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math \
-			-DTARGET_FLOAT32_IS_FLOAT -DTARGET_IS_NDS \
+			-DTARGET_FLOAT32_IS_FIXED -DTARGET_IS_NDS \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM9
