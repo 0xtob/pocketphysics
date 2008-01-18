@@ -153,7 +153,7 @@ int World::getThingsAt(int x, int y, Thing ** things, int n)
 	return returncount;
 }
 
-void World::makePhysical(Thing *thing)
+bool World::makePhysical(Thing *thing)
 {
 	if(thing->getShape() == Thing::Pin)
 	{
@@ -163,10 +163,10 @@ void World::makePhysical(Thing *thing)
 	else
 	{
 		if(thing->getb2Body() != 0)
-			return;
+			return false;
 		
 		if(thing->getType() == Thing::NonSolid)
-			return;
+			return false;
 		
 		switch(thing->getShape())
 		{
@@ -210,11 +210,14 @@ void World::makePhysical(Thing *thing)
 				
 				b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
 				
-				b2Body* body = b2world->Create(bodyDef);
+				b2Body* body = 0;
+				if(deleteMe)
+				{
+					body = b2world->Create(bodyDef);
+					polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
+					delete[] deleteMe;
+				}
 				
-				polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
-				
-				delete[] deleteMe;
 				delete polyDef;
 				delete bodyDef;
 				  
@@ -223,8 +226,17 @@ void World::makePhysical(Thing *thing)
 				
 				delete pgon;
 				
+				if(!deleteMe)
+				{
+					printf("Convex decomposition failed!\n");
+					return false;
+				}
+				
 				if(!body)
+				{
 					printf("Making the body failed!\n");
+					return false;
+				}
 			}
 			break;
 			
@@ -270,6 +282,8 @@ void World::makePhysical(Thing *thing)
 				break;
 		}
 	}
+	
+	return true;
 }
 
 // Makes a thing unphysical, i.e. removes it from the simulation

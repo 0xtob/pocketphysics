@@ -426,7 +426,13 @@ void Canvas::penUp(int x, int y)
 						poly->setPosition(cx, cy);
 						
 						// Make physical
-						world->makePhysical(poly);
+						bool success = world->makePhysical(poly);
+						
+						if(!success)
+						{
+							world->remove(poly);
+							delete poly;
+						}
 					}
 					currentthing = 0;
 				}

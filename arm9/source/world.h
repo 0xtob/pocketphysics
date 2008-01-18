@@ -40,7 +40,7 @@ class World
 		int getThingsAt(int x, int y, Thing **things, int n);
 		
 		// Makes a thing physical, i.e. adds it to the simulation
-		void makePhysical(Thing *thing);
+		bool makePhysical(Thing *thing);
 		
 		// Makes a thing unphysical, i.e. removes it from the simulation
 		void makeUnphysical(Thing *thing);
