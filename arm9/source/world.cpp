@@ -128,7 +128,8 @@ int World::getThingsAt(int x, int y, Thing ** things, int n)
 	b2AABB *touchAABB = new b2AABB();
 	touchAABB->minVertex.Set((float)(x-2)/10.0f, (float)(y-2)/10.0f);
 	touchAABB->maxVertex.Set((float)(x+2)/10.0f, (float)(y+2)/10.0f);
-	  
+	b2Vec2 point = b2Vec2(x/10.0f, y/10.0f);
+	
 	b2Shape *shape[16];
 	b2Body *body;
 	
@@ -138,16 +139,21 @@ int World::getThingsAt(int x, int y, Thing ** things, int n)
 	{
 		body = shape[i]->GetBody();
 		
-		// Do we already have this body? (Happens for multi-shape bodies)
-		bool alreadythere = false;
-		for(int b=0;b<returncount;++b)
-			if(things[b]->getb2Body() == body)
-				alreadythere = true;
-		
-		if(!alreadythere)
+		// We know (x,y) lies in the bounding box of the body.
+		// Now check if it lies in the actual body
+		if( shape[i]->TestPoint(body->GetXForm(), point) )
 		{
-			things[returncount] = (Thing*)body->GetUserData();
-			returncount++;
+			// Do we already have this body? (Happens for multi-shape bodies)
+			bool alreadythere = false;
+			for(int b=0;b<returncount;++b)
+				if(things[b]->getb2Body() == body)
+					alreadythere = true;
+			
+			if(!alreadythere)
+			{
+				things[returncount] = (Thing*)body->GetUserData();
+				returncount++;
+			}
 		}
 	}
 	return returncount;
