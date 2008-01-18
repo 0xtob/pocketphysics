@@ -4,3 +4,8 @@ since 0.1
 - standby
 - numerical fixes in box2d
 - moved from dynamic to static timestep => subjectively slower, but 100% reproducable
+
+since 0.2
+---------
+- updated to box2d 2.0 (svn r20)
+- if simulation is behind time, 2 steps are performed at once => subjectively faster

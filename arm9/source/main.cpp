@@ -36,6 +36,8 @@
 #include "sound_play_raw.h"
 #include "sound_del_raw.h"
 
+#define min(x,y)	((x)<(y)?(x):(y))
+
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
 #define DEBUG
@@ -58,6 +60,7 @@ int slowfps=60;
 int currentframe = 0;
 bool framesdone[60];
 bool framedone = false;
+int accumulated_timesteps = 0;
 
 UL_IMAGE *imgbg;
 
@@ -102,6 +105,9 @@ void lidSleep()
 
 void fpstimer()
 {
+	if(state.simulating)
+		accumulated_timesteps++;
+	
 	framesdone[currentframe] = framedone;
 	
 	if(!framedone)
@@ -614,10 +620,8 @@ int main()
 		iprintf("Get a DSMotion. They are fun!\n");
 	}
 	
-	TIMER0_DATA = TIMER_FREQ_1024(60);
-	TIMER0_CR = TIMER_ENABLE | TIMER_DIV_1024 | TIMER_IRQ_REQ;
-	irqSet(IRQ_TIMER0, fpstimer);
-	irqEnable(IRQ_TIMER0);
+	irqSet(IRQ_VBLANK, fpstimer);
+	irqEnable(IRQ_VBLANK);
 	
 	for(int i=0;i<60;++i)
 		framesdone[i] = true;
@@ -640,14 +644,15 @@ int main()
 		
 		if(state.simulating)
 		{
-			if(dsmotion)
-				updateGravity();
-			world->step(timeStep);
-			
-			int x,y;
-			world->getThing(0)->getPosition(&x,&y);
+			for(int i=0; i<min(2, accumulated_timesteps); ++i)
+			{
+				if(dsmotion)
+					updateGravity();
+				world->step(timeStep);
+			}
 		}
-			
+		accumulated_timesteps = 0;
+		
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
 		
 		canvas->draw();
