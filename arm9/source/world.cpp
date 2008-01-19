@@ -379,8 +379,8 @@ void World::initPhysics(void)
 	b2AABB *worldAABB = new b2AABB();
 	float w = (float)width/10.0f;
 	float h = (float)height/10.0f;
-	worldAABB->minVertex.Set(-w, -h);
-	worldAABB->maxVertex.Set(2*w, 2*h);
+	worldAABB->minVertex.Set(-25.6, -19.2);
+	worldAABB->maxVertex.Set(w+25.6, h+19.2);
 	
 	// Define the gravity vector.
 	b2Vec2 grav(gravity_x, gravity_y);

@@ -37,7 +37,7 @@ void Canvas::draw(void)
 			else if(thing->getType() == Thing::Solid)
 				col = RGB15(31,0,0);
 			else if(thing->getType() == Thing::NonSolid)
-							col = RGB15(0,31,0);
+				col = RGB15(0,31,0);
 		}
 		
 		switch (thing->getShape())

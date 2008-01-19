@@ -65,3 +65,6 @@ clean:
 	$(MAKE) -C arm9 clean
 	$(MAKE) -C arm7 clean
 	rm -f $(TARGET).ds.gba $(TARGET).nds $(TARGET).arm7 $(TARGET).arm9
+
+emu: all
+	~/bin/nocash.sh $(TARGET).nds

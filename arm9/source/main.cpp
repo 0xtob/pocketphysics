@@ -42,7 +42,20 @@
 
 #define DEBUG
 
-int scx=0;
+#define WORLD_WIDTH		(2*256)
+#define WORLD_HEIGHT	(2*192)
+
+#define SCROLL_XMAX		(WORLD_WIDTH-256)
+#define SCROLL_YMAX		(WORLD_HEIGHT-192)
+
+#define SCROLL_ACCEL	1
+#define	SCROLL_VMAX		8
+
+int scroll_x=0;
+int scroll_y=0;
+
+int scroll_vx=0;
+int scroll_vy=0;
 
 int touch_was_down = 0;
 int lastx, lasty;
@@ -61,6 +74,8 @@ int currentframe = 0;
 bool framesdone[60];
 bool framedone = false;
 int accumulated_timesteps = 0;
+
+bool main_screen_active = false;
 
 UL_IMAGE *imgbg;
 
@@ -103,8 +118,10 @@ void lidSleep()
    __asm("BX lr");
 }
 
-void fpstimer()
+void mearureFps()
 {
+	main_screen_active = !main_screen_active;
+	
 	if(state.simulating)
 		accumulated_timesteps++;
 	
@@ -136,12 +153,6 @@ void fpstimer()
 	framedone = false;
 }
 
-void switchScreens(void)
-{
-	lcdSwap();
-	gui->switchScreens();
-}
-
 void drawSideBar(void)
 {
 	ulSetAlpha(UL_FX_ALPHA, 10, 1);
@@ -152,6 +163,69 @@ void drawBottomBar(void)
 {
 	ulSetAlpha(UL_FX_ALPHA, 10, 1);
 	ulDrawFillRect(0, 171, 232, 192, RGB15(0,0,0));
+}
+
+void draw()
+{
+	ulEndFrame();
+	
+	ulStartDrawing2D();
+	
+	//if (ulGetMainLcd()) // Bottom Screen
+	//{
+		//videoSetMode(MODE_3_3D);
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
+		glMatrixMode(GL_MODELVIEW);
+		
+		glTranslate3f32(-scroll_x, 0, 0);
+		glTranslate3f32(0.0f, -scroll_y, 0);
+		
+		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+		ulDrawImageXY(imgbg, 0, 0);
+		ulSetAlpha(UL_FX_ALPHA, 31, 1);
+		
+		canvas->draw();
+		
+		glLoadIdentity();
+		drawSideBar(); drawBottomBar();
+		/*
+	}
+	else // Top Screen
+	{
+		//videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrthof32(-SCREEN_WIDTH, 2*SCREEN_WIDTH, 2*SCREEN_HEIGHT, -SCREEN_HEIGHT, -4090, 1);
+		glMatrixMode(GL_MODELVIEW);
+		
+		glTranslatef(((float)scroll_x)/256.0f, 0.0f, 0.0f);
+					
+		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+		
+		ulDrawImageXY(imgbg, 0, 0);
+		
+		ulSetAlpha(UL_FX_ALPHA, 31, 1);
+		
+		canvas->draw();
+	}
+	*/
+	ulEndDrawing();
+	
+	framedone = true;
+}
+
+void VBlankHandler()
+{
+	mearureFps();
+	//draw();
+}
+
+void switchScreens(void)
+{
+	lcdSwap();
+	gui->switchScreens();
 }
 
 void drawMainBg()
@@ -407,7 +481,7 @@ void handleInput(void)
 	{
 		if(touch_was_down && !PEN_DOWN) // PenUp
 		{
-			canvas->penUp(touch.px, touch.py);
+			canvas->penUp(touch.px + scroll_x, touch.py + scroll_y);
 			gui->penUp(touch.px, touch.py);
 			CommandStopSample(0);
 			
@@ -420,7 +494,7 @@ void handleInput(void)
 				if(onCanvas(touch.px, touch.py))
 				{
 					CommandPlaySample(smp_crayon, 48, 255, 0);
-					canvas->penDown(touch.px, touch.py);
+					canvas->penDown(touch.px + scroll_x, touch.py + scroll_y);
 				}
 				else
 					gui->penDown(touch.px, touch.py);		
@@ -431,7 +505,7 @@ void handleInput(void)
 			if((abs(touch.px - lastx)>0) || (abs(touch.py - lasty)>0)) // PenMove
 			{
 				if(onCanvas(touch.px, touch.py))
-					canvas->penMove(touch.px, touch.py);
+					canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
 				else
 					gui->penMove(touch.px, touch.py);
 				
@@ -456,6 +530,43 @@ void handleInput(void)
 		
 			iprintf("Get a DSMotion. They are fun!\n");
 		}
+	}
+	
+	if( (keysheld & KEY_RIGHT) && (scroll_vx < SCROLL_VMAX) )
+		scroll_vx++;
+	else if( (keysheld & KEY_LEFT) && (scroll_vx > -SCROLL_VMAX) )
+		scroll_vx--;
+	else if(scroll_vx > 0)
+		scroll_vx--;
+	else if(scroll_vx < 0)
+		scroll_vx++;
+	if( (keysheld & KEY_DOWN) && (scroll_vy < SCROLL_VMAX) )
+		scroll_vy++;
+	else if( (keysheld & KEY_UP) && (scroll_vy > -SCROLL_VMAX) )
+		scroll_vy--;
+	else if(scroll_vy > 0)
+			scroll_vy--;
+	else if(scroll_vy < 0)
+		scroll_vy++;
+	
+	if(scroll_vx != 0)
+	{
+		scroll_x += scroll_vx;
+		
+		if(scroll_x < 0)
+			scroll_x = 0;
+		if(scroll_x > SCROLL_XMAX)
+			scroll_x = SCROLL_XMAX;
+	}
+	
+	if(scroll_vy != 0)
+	{
+		scroll_y += scroll_vy;
+		
+		if(scroll_y < 0)
+			scroll_y = 0;
+		if(scroll_y > SCROLL_YMAX)
+			scroll_y = SCROLL_YMAX;
 	}
 	
 }
@@ -528,7 +639,8 @@ void fadeIn()
 	for(int i=0;i<60;++i)
 	{
 		BLEND_Y = 31-i/2;
-	
+		SUB_BLEND_Y = 31-i/2;
+		
 		ulStartDrawing2D();
 		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
 		ulDrawImageXY(imgbg, 0, 0);
@@ -537,6 +649,7 @@ void fadeIn()
 		ulSyncFrame();
 	}
 	BLEND_Y = 0;
+	SUB_BLEND_Y = 0;
 }
 
 int main()
@@ -576,6 +689,7 @@ int main()
 	SUB_BG2_YDY = 1 << 8;
 	
 	BLEND_CR = BLEND_FADE_BLACK | BLEND_SRC_BG0 | BLEND_SRC_BG3;
+	SUB_BLEND_CR = BLEND_FADE_BLACK | BLEND_SRC_BG2;
 	
 #ifdef DEBUG
 	printf("Pocket Physics Debug build\n");
@@ -589,7 +703,7 @@ int main()
 #ifndef DEBUG
 	showSplash();
 #endif
-	world = new World(231, 170);
+	world = new World(WORLD_WIDTH, WORLD_HEIGHT);
 	canvas = new Canvas(world);
 	
 	theme = new Theme;
@@ -603,9 +717,13 @@ int main()
 	
 	//Initialize the text part
 	ulInitText();
-
+	//ulInitDualScreenMode();
+	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+	
 	ul_firstPaletteColorOpaque=2;
 	imgbg = ulLoadImageFilePNG((const char*)paper2_png, (int)paper2_png_size, UL_IN_VRAM, UL_PF_PAL8);
+	imgbg->stretchX = WORLD_WIDTH;
+	imgbg->stretchY = WORLD_HEIGHT;
 	
 	if(motion_init() != 0)
 	{
@@ -620,28 +738,21 @@ int main()
 		iprintf("Get a DSMotion. They are fun!\n");
 	}
 	
-	irqSet(IRQ_VBLANK, fpstimer);
+	irqSet(IRQ_VBLANK, VBlankHandler);
 	irqEnable(IRQ_VBLANK);
 	
 	for(int i=0;i<60;++i)
 		framesdone[i] = true;
 	
-	fadeIn();
+	
+	//fadeIn();
+	BLEND_Y = 0;
+	SUB_BLEND_Y = 0;
 	
 	init = false;
 	
 	while(1)
 	{
-		
-		ulStartDrawing2D();
-		
-		glTranslatef(((float)scx)/256.0f, 0.0f, 0.0f);
-		
-		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-		
-		ulDrawImageXY(imgbg, 0, 0);
-		drawSideBar(); drawBottomBar();
-		
 		if(state.simulating)
 		{
 			for(int i=0; i<min(2, accumulated_timesteps); ++i)
@@ -653,20 +764,19 @@ int main()
 		}
 		accumulated_timesteps = 0;
 		
-		ulSetAlpha(UL_FX_ALPHA, 31, 1);
+
 		
-		canvas->draw();
+		draw();
 		
-		ulEndDrawing();
+		
 		
 		handleInput();
 		
 		CommandProcessCommands();
 		
-		framedone = true;
-		
 		//Wait the VBlank (synchronize at 60 fps)
-		ulSyncFrame();
+		swiWaitForVBlank();
+		//ulSyncFrame();
 	}
 
 	//Program end - should never get there
