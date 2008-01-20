@@ -416,14 +416,10 @@ void Canvas::penUp(int x, int y)
 							odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
 							ody = (4 * (ody<<8) / len)>>8;
 							
-							if( (x1 > x2) || ( (x1 == x2) && (y1 > y2) ) ) // For clockwiseness
-							{
-								odx = -odx;
-								odx = -ody;
-							}
-							
 							poly->addVertex(x2 + odx, y2 + ody);
 							poly->addVertex(x1 + odx, y1 + ody);
+							
+							printf("%d,%d\n",odx,ody);
 							
 							n_vertices += 2;
 						}
