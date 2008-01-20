@@ -42,8 +42,8 @@
 
 #define DEBUG
 
-#define WORLD_WIDTH		(2*256)
-#define WORLD_HEIGHT	(2*192)
+#define WORLD_WIDTH		(8*256)
+#define WORLD_HEIGHT	(8*192)
 
 #define SCROLL_XMAX		(WORLD_WIDTH-256)
 #define SCROLL_YMAX		(WORLD_HEIGHT-192)
@@ -574,6 +574,13 @@ void handleInput(void)
 	}
 	
 	passed_frames = 0;
+	
+	// Special case: User holds down the pen and scrolls => generate penmove event
+	if( ( (scroll_vx != 0) || (scroll_vy != 0) )
+			&& (touch_was_down && PEN_DOWN)
+			&& (onCanvas(touch.px, touch.py) ) )
+		canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
+		
 }
 
 void loadSamples()

@@ -346,6 +346,18 @@ void Canvas::penMove(int x, int y)
 	}
 }
 
+int mysqrt(int x)
+{
+    unsigned long long m, root = 0, left = (unsigned long long)x;
+    for ( m = (long long)1<<( (sizeof(long long)<<3) - 2); m; m >>= 2 )
+    {
+		  if ( ( left & -m ) > root ) 
+			 left -= ( root += m ), root += m;
+		  root >>= 1;
+    }
+    return root;
+}
+
 void Canvas::penUp(int x, int y)
 {
 	switch(pen_mode)
@@ -390,17 +402,28 @@ void Canvas::penUp(int x, int y)
 							int x1, y1, x2, y2;
 							poly->getVertex(0, &x1, &y1, true);
 							poly->getVertex(1, &x2, &y2, true);
-							b2Vec2 od;
-							od.x = (y1 - y2)/2;
-							od.y = (x2 - x1)/2;
-							od.Normalize();
-							od *= 4;
+							
+							// Old float code replaced by fast integer code below
+							//b2Vec2 od;
+							//od.x = (y1 - y2)/2;
+							//od.y = (x2 - x1)/2;
+							//od.Normalize();
+							//od *= 4;
+							
+							int odx = y1 - y2;
+							int ody = x2 - x1;
+							int len = mysqrt(odx*odx + ody*ody);
+							odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
+							ody = (4 * (ody<<8) / len)>>8;
 							
 							if( (x1 > x2) || ( (x1 == x2) && (y1 > y2) ) ) // For clockwiseness
-								od = -od;
+							{
+								odx = -odx;
+								odx = -ody;
+							}
 							
-							poly->addVertex(x2 + (int)od.x, y2 + (int)od.y);
-							poly->addVertex(x1 + (int)od.x, y1 + (int)od.y);
+							poly->addVertex(x2 + odx, y2 + ody);
+							poly->addVertex(x1 + odx, y1 + ody);
 							
 							n_vertices += 2;
 						}
@@ -526,12 +549,31 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	
 	ulSetAlpha(UL_FX_ALPHA, 20, alphaint);
 	
-	b2Vec2 od;
-	od.x = (y1 - y2)/2;
-	od.y = (x2 - x1)/2;
-	int len = od.Length()*2;
-	od.Normalize();
-	od *= 4;
+	// Old float code replaced by fast integer code below
+	//b2Vec2 od;
+	//od.x = (y1 - y2)/2;
+	//od.y = (x2 - x1)/2;
+	//int len = od.Length()*2;
+	//od.Normalize();
+	//od *= 4;
+	
+	int odx = y1 - y2;
+	int ody = x2 - x1;
+	int len = mysqrt(odx*odx + ody*ody);
+	odx = 4 * (odx<<8) / len; // using 24.8 fixed point for normal calculation
+	ody = 4 * (ody<<8) / len;
+	
+	// Alpha: Moves the line texture inside the shape, so lines don't fully overlap when
+	// obejcts collide
+	
+	//float32 alpha = float32(1.3);
+	//b2Vec2 od1 = alpha * od;
+	//b2Vec2 od2 = (float32(2)-alpha) * od;
+	
+	int od1x = (odx * 333) >> 16; // 333 is 1.3 (alpha) in 24.8 fixed point
+	int od1y = (ody * 333) >> 16;
+	int od2x = ((2*odx)>>8) - od1x;
+	int od2y = ((2*ody)>>8) - od1y;
 	
 	crayon->offsetX0=0;
 	crayon->offsetY0=0;
@@ -540,15 +582,9 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	
 	ulSetImageTint(crayon, col);
 	
-	// Alpha: Moves the line texture inside the shape, so lines don't fully overlap when
-	// obejcts collide
-	float32 alpha = float32(1.3);
-	b2Vec2 od1 = alpha * od;
-	b2Vec2 od2 = (float32(2)-alpha) * od;
-	
 	ulDrawImageQuad(crayon,
-			x1+(int)od1.x, y1+(int)od1.y,
-			x2+(int)od1.x, y2+(int)od1.y,
-			x2-(int)od2.x, y2-(int)od2.y,
-			x1-(int)od2.x, y1-(int)od2.y);
+				x1+od1x, y1+od1y,
+				x2+od1x, y2+od1y,
+				x2-od2x, y2-od2y,
+				x1-od2x, y1-od2y);
 }
