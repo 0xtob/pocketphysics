@@ -74,6 +74,7 @@ int currentframe = 0;
 bool framesdone[60];
 bool framedone = false;
 int accumulated_timesteps = 0;
+int passed_frames = 0;
 
 bool main_screen_active = false;
 
@@ -124,6 +125,8 @@ void mearureFps()
 	
 	if(state.simulating)
 		accumulated_timesteps++;
+	
+	passed_frames++; // same as accumulated timesteps but for scrolling
 	
 	framesdone[currentframe] = framedone;
 	
@@ -533,25 +536,26 @@ void handleInput(void)
 	}
 	
 	if( (keysheld & KEY_RIGHT) && (scroll_vx < SCROLL_VMAX) )
-		scroll_vx++;
+		scroll_vx += passed_frames;
 	else if( (keysheld & KEY_LEFT) && (scroll_vx > -SCROLL_VMAX) )
-		scroll_vx--;
-	else if(scroll_vx > 0)
-		scroll_vx--;
-	else if(scroll_vx < 0)
-		scroll_vx++;
-	if( (keysheld & KEY_DOWN) && (scroll_vy < SCROLL_VMAX) )
-		scroll_vy++;
+		scroll_vx -= passed_frames;
+	else if(scroll_vx > 0) {
+		scroll_vx -= passed_frames; if(scroll_vx < 0) scroll_vx = 0;
+	} else if(scroll_vx < 0) {
+		scroll_vx += passed_frames; if(scroll_vx > 0) scroll_vx = 0;
+	} if( (keysheld & KEY_DOWN) && (scroll_vy < SCROLL_VMAX) )
+		scroll_vy += passed_frames;
 	else if( (keysheld & KEY_UP) && (scroll_vy > -SCROLL_VMAX) )
-		scroll_vy--;
-	else if(scroll_vy > 0)
-			scroll_vy--;
-	else if(scroll_vy < 0)
-		scroll_vy++;
+		scroll_vy -= passed_frames;
+	else if(scroll_vy > 0) {
+			scroll_vy -= passed_frames; if(scroll_vy < 0) scroll_vy = 0;
+	} else if(scroll_vy < 0) {
+		scroll_vy += passed_frames; if(scroll_vy > 0) scroll_vy = 0;
+	}
 	
 	if(scroll_vx != 0)
 	{
-		scroll_x += scroll_vx;
+		scroll_x += scroll_vx * passed_frames;
 		
 		if(scroll_x < 0)
 			scroll_x = 0;
@@ -561,7 +565,7 @@ void handleInput(void)
 	
 	if(scroll_vy != 0)
 	{
-		scroll_y += scroll_vy;
+		scroll_y += scroll_vy * passed_frames;
 		
 		if(scroll_y < 0)
 			scroll_y = 0;
@@ -569,6 +573,7 @@ void handleInput(void)
 			scroll_y = SCROLL_YMAX;
 	}
 	
+	passed_frames = 0;
 }
 
 void loadSamples()
@@ -764,19 +769,13 @@ int main()
 		}
 		accumulated_timesteps = 0;
 		
-
-		
 		draw();
-		
-		
 		
 		handleInput();
 		
 		CommandProcessCommands();
 		
-		//Wait the VBlank (synchronize at 60 fps)
-		swiWaitForVBlank();
-		//ulSyncFrame();
+		ulSyncFrame();
 	}
 
 	//Program end - should never get there
