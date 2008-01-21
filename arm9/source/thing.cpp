@@ -59,7 +59,7 @@ b2Body* Thing::getb2Body(void)
 	return b2body;
 }
 
-void Thing::setRotation(float _rotation)
+void Thing::setRotation(float32 _rotation)
 {
 	// TODO: Physical
 	rotation = _rotation;
@@ -77,7 +77,7 @@ void Thing::setRotation(float _rotation)
 	}
 }
 
-float Thing::getRotation(void)
+float32 Thing::getRotation(void)
 {
 	if(b2body)
 	{

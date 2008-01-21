@@ -203,13 +203,11 @@ void draw()
 	}
 	else // Top Screen
 	{
-		//videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+		videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		glOrthof32(-SCREEN_WIDTH, 2*SCREEN_WIDTH, 2*SCREEN_HEIGHT, -SCREEN_HEIGHT, -4090, 1);
+		glOrthof32(0, WORLD_WIDTH, WORLD_HEIGHT, 0, -4090, 1);
 		glMatrixMode(GL_MODELVIEW);
-		
-		glTranslatef(((float)scroll_x)/256.0f, 0.0f, 0.0f);
 					
 		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
 		
@@ -816,6 +814,7 @@ int main()
 		CommandProcessCommands();
 		
 		ulSyncFrame();
+		//swiWaitForVBlank();
 	}
 
 	//Program end - should never get there

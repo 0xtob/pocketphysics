@@ -18,8 +18,8 @@ class Thing
 		virtual void getPosition(int *_x, int*_y);
 		void setb2Body(b2Body *_b2body);
 		b2Body* getb2Body(void);
-		void setRotation(float _rotation);
-		float getRotation(void);
+		void setRotation(float32 _rotation);
+		float32 getRotation(void);
 		
 		// Reset to original position/rotation
 		void reset(void);
@@ -29,7 +29,7 @@ class Thing
 		CreatedBy createdby;
 		Shape shape;
 		int x, y;
-		float rotation; // Radians
+		float32 rotation; // Radians
 		b2Body* b2body;
 };
 

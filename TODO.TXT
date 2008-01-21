@@ -1,8 +1,6 @@
-- Make it more stable
-- Scrolling
-- Pins
 - see forum
 
 bugs:
 freeze wenn play gedrückt ohne objekte auf bildschirm
 objekte die aus dem bild fallen werden nicht disabled
+freeze nach standby (manchmal)

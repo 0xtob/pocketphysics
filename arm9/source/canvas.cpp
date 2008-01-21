@@ -83,14 +83,22 @@ void Canvas::draw(void)
 				circle->getPosition(&px, &py);
 				radius = circle->getRadius();
 				
-				float angle = -circle->getRotation();
+				int angle = (int)(circle->getRotation() * 5120 / (float32)63) % 512;
+				if(angle < 0)
+					angle = 512 + angle;
+				
+				//         (  radius<<12  * cos(initial rotation)<<12 ) >> 12
+				int vecx = ( (radius<<12) * COS_bin[(angle * 512 / 360) % 512] ) >> 12;
+				int vecy = ( (radius<<12) * SIN_bin[(angle * 512 / 360) % 512] ) >> 12;
+				
 				int lastx=0, lasty=0;
 				for(int i=0;i<=N_CIRCLE_SEGMENTS;++i)
 				{
-					int vx = px + (int)((double)radius * cos(angle));
-					int vy = py - (int)((double)radius * sin(angle));
+					vecx = ( (radius<<12) * COS_bin[(angle + 512 * i / N_CIRCLE_SEGMENTS) % 512]) >> 12;
+					vecy = ( (radius<<12) * SIN_bin[(angle + 512 * i / N_CIRCLE_SEGMENTS) % 512]) >> 12;
 					
-					angle += 2*M_PI/N_CIRCLE_SEGMENTS;
+					int vx = px + (vecx>>12);
+					int vy = py + (vecy>>12);
 					
 					if(i>0)
 						drawLine(col, lastx, lasty, vx, vy);
@@ -403,32 +411,6 @@ void Canvas::penUp(int x, int y)
 					}
 					else
 					{
-						/*
-						if( poly->getNVertices() == 2 ) // Make a line
-						{
-							int x1, y1, x2, y2;
-							poly->getVertex(0, &x1, &y1, true);
-							poly->getVertex(1, &x2, &y2, true);
-							
-							// Old float code replaced by fast integer code below
-							//b2Vec2 od;
-							//od.x = (y1 - y2)/2;
-							//od.y = (x2 - x1)/2;
-							//od.Normalize();
-							//od *= 4;
-							
-							int odx = y1 - y2;
-							int ody = x2 - x1;
-							int len = mysqrt(odx*odx + ody*ody);
-							odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
-							ody = (4 * (ody<<8) / len)>>8;
-							
-							poly->addVertex(x2 + odx, y2 + ody);
-							poly->addVertex(x1 + odx, y1 + ody);
-							
-							n_vertices += 2;
-						}
-						*/
 						// Recompute center
 						int cx=0, cy=0, vx, vy;
 						for(int i=0;i<n_vertices;++i)
