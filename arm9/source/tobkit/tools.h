@@ -44,4 +44,6 @@ void dbgWaitButton(void);
 void PrintFreeMem(void);
 void printMallInfo(void);
 
+int mysqrt(int x);
+
 #endif

@@ -19,10 +19,14 @@ class Polygon: public Thing
 		
 		void setVertex(int index, int _x, int _y);
 		
+		void setClosed(bool closed_);
+		bool getClosed(void);
+		
 	private:
 		int vertices_x[MAX_VERTICES];
 		int vertices_y[MAX_VERTICES];
 		int n_vertices;
+		bool closed;
 };
 
 #endif

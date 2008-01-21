@@ -2,6 +2,7 @@
 
 #include "sample.h"
 #include "../../generic/command.h"
+#include "tools.h"
 
 #include "thing.h"
 #include "polygon.h"
@@ -12,6 +13,7 @@
 
 #define MAX_POINTS              64
 #define DRAW_MIN_POINT_DIST     7 //15
+#define DRAW_POLYGON_CLOSE_DIST	7 //15
 #define DRAW_NEW_POINT_ANGLE    20
 
 #define N_CIRCLE_SEGMENTS		16
@@ -61,8 +63,11 @@ void Canvas::draw(void)
 					lasty=y;
 				}
 				
-				// Don't draw closing line when drawing a polygon is active
-				if( ! (drawing && (pen_mode == pmPolygon) && (polygon == currentthing) ) )
+				// Closing line if
+				// - user isn't just drawing
+				// and
+				// - it's a closed polygon
+				if( polygon->getClosed() && (! (drawing && (pen_mode == pmPolygon) && (polygon == currentthing) ) ) )
 				{
 					polygon->getVertex(0, &x, &y);
 					drawLine(col, lastx, lasty, x, y);
@@ -164,6 +169,7 @@ void Canvas::penDown(int x, int y)
 			drawing = true;
 			
 			Polygon *poly = new Polygon(type, Thing::User);
+			poly->setClosed(true);
 			poly->addVertex(x, y);
 			poly->addVertex(x+1, y);
 			poly->addVertex(x+1, y+1);
@@ -346,18 +352,6 @@ void Canvas::penMove(int x, int y)
 	}
 }
 
-int mysqrt(int x)
-{
-    unsigned long long m, root = 0, left = (unsigned long long)x;
-    for ( m = (long long)1<<( (sizeof(long long)<<3) - 2); m; m >>= 2 )
-    {
-		  if ( ( left & -m ) > root ) 
-			 left -= ( root += m ), root += m;
-		  root >>= 1;
-    }
-    return root;
-}
-
 void Canvas::penUp(int x, int y)
 {
 	switch(pen_mode)
@@ -376,17 +370,29 @@ void Canvas::penUp(int x, int y)
 					
 					int n_vertices = poly->getNVertices();
 					
-					// Remove last point if it is too close to the first
 					int fx, fy, lx, ly;
 					poly->getVertex(0, &fx, &fy);
 					poly->getVertex(n_vertices-1, &lx, &ly);
 					s16 dx = lx - fx;
 					s16 dy = ly - fy;
 					
+					// Close the polygon if the last point is close to the first
+					if(dx*dx+dy*dy < DRAW_POLYGON_CLOSE_DIST*DRAW_POLYGON_CLOSE_DIST)
+						poly->setClosed(true);
+					else
+						poly->setClosed(false);
+					
+					if(poly->getClosed())
+						printf("closed\n");
+					else
+						printf("open\n");
+					
+					// Remove last point if it is too close to the first
 					if(dx*dx+dy*dy < DRAW_MIN_POINT_DIST*DRAW_MIN_POINT_DIST)
 					{
 						poly->removeVertex(n_vertices-1);
 					}
+					
 					
 					// Delete if too small
 					if( n_vertices < 2 )
@@ -397,6 +403,7 @@ void Canvas::penUp(int x, int y)
 					}
 					else
 					{
+						/*
 						if( poly->getNVertices() == 2 ) // Make a line
 						{
 							int x1, y1, x2, y2;
@@ -419,11 +426,9 @@ void Canvas::penUp(int x, int y)
 							poly->addVertex(x2 + odx, y2 + ody);
 							poly->addVertex(x1 + odx, y1 + ody);
 							
-							printf("%d,%d\n",odx,ody);
-							
 							n_vertices += 2;
 						}
-						
+						*/
 						// Recompute center
 						int cx=0, cy=0, vx, vy;
 						for(int i=0;i<n_vertices;++i)

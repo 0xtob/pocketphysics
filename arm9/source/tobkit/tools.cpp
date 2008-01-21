@@ -415,3 +415,15 @@ void printMallInfo(void)
 	iprintf("mmap bytes:       %d\n", mi.hblkhd);
 	iprintf("malloc chunks:    %d\n", mi.uordblks);
 }
+
+int mysqrt(int x)
+{
+    unsigned long long m, root = 0, left = (unsigned long long)x;
+    for ( m = (long long)1<<( (sizeof(long long)<<3) - 2); m; m >>= 2 )
+    {
+		  if ( ( left & -m ) > root ) 
+			 left -= ( root += m ), root += m;
+		  root >>= 1;
+    }
+    return root;
+}

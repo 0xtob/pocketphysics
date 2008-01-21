@@ -42,8 +42,8 @@
 
 #define DEBUG
 
-#define WORLD_WIDTH		(8*256)
-#define WORLD_HEIGHT	(8*192)
+#define WORLD_WIDTH		(3*256)
+#define WORLD_HEIGHT	(3*192)
 
 #define SCROLL_XMAX		(WORLD_WIDTH-256)
 #define SCROLL_YMAX		(WORLD_HEIGHT-192)
@@ -56,6 +56,12 @@ int scroll_y=0;
 
 int scroll_vx=0;
 int scroll_vy=0;
+
+int stylus_scroll_x = 0;
+int stylus_scroll_y = 0;
+
+int stylus_scroll_dx = 0;
+int stylus_scroll_dy = 0;
 
 int touch_was_down = 0;
 int lastx, lasty;
@@ -468,10 +474,16 @@ void handleInput(void)
 {
 	// Check input
 	scanKeys();
-	u16 keysdown = keysDown();
+	//u16 keysdown = keysDown();
 	//u16 keysup = keysUp();
 	u16 keysheld = keysHeld();
 	touchPosition touch = touchReadXY();
+	
+	bool stylus_scrolling;
+	if( PEN_DOWN && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) )
+		stylus_scrolling = true;
+	else
+		stylus_scrolling = false;
 	
 	if(!touch_was_down && PEN_DOWN)
 	{
@@ -479,6 +491,12 @@ void handleInput(void)
 		lastx = touch.px;
 		lasty = touch.py;
 		touch_was_down = 1;
+		
+		if(stylus_scrolling)
+		{
+			stylus_scroll_dx = 0;
+			stylus_scroll_dy = 0;
+		}
 	}
 	else
 	{
@@ -494,7 +512,12 @@ void handleInput(void)
 		{
 			if(!got_good_pen_reading) // PenDown
 			{
-				if(onCanvas(touch.px, touch.py))
+				if(stylus_scrolling)
+				{
+					stylus_scroll_x = touch.px;
+					stylus_scroll_y = touch.py;
+				}
+				else if(onCanvas(touch.px, touch.py))
 				{
 					CommandPlaySample(smp_crayon, 48, 255, 0);
 					canvas->penDown(touch.px + scroll_x, touch.py + scroll_y);
@@ -507,6 +530,11 @@ void handleInput(void)
 			
 			if((abs(touch.px - lastx)>0) || (abs(touch.py - lasty)>0)) // PenMove
 			{
+				if(stylus_scrolling)
+				{
+					stylus_scroll_dx = touch.px - stylus_scroll_x;
+					stylus_scroll_dy = touch.py - stylus_scroll_y;
+				}
 				if(onCanvas(touch.px, touch.py))
 					canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
 				else
@@ -535,7 +563,12 @@ void handleInput(void)
 		}
 	}
 	
-	if( (keysheld & KEY_RIGHT) && (scroll_vx < SCROLL_VMAX) )
+	if(stylus_scrolling)
+	{
+		scroll_vx = stylus_scroll_dx / 5;
+		scroll_vy = stylus_scroll_dy / 5;
+	}
+	else if( (keysheld & KEY_RIGHT) && (scroll_vx < SCROLL_VMAX) )
 		scroll_vx += passed_frames;
 	else if( (keysheld & KEY_LEFT) && (scroll_vx > -SCROLL_VMAX) )
 		scroll_vx -= passed_frames;

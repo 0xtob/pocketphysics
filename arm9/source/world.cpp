@@ -3,6 +3,8 @@
 #include "polygon.h"
 #include "Circle.h"
 
+#include "tools.h"
+
 #include <stdlib.h>
 
 World::World(int _width, int _height):
@@ -180,32 +182,6 @@ bool World::makePhysical(Thing *thing)
 			{
 				Polygon *polygon = (Polygon*)thing;
 				
-				b2PolygonDef *polyDef = new b2PolygonDef();
-				
-				int n_points = polygon->getNVertices();
-				polyDef->vertexCount = n_points;
-				  
-				if( (polygon->getType() == Thing::Solid) || (polygon->getType() == Thing::NonSolid) )
-					polyDef->density = 0.0f;
-				else
-					polyDef->density = DEFAULT_DENSITY;
-				  
-				polyDef->friction = DEFAULT_FRICTION;
-				polyDef->restitution = DEFAULT_RESTITUTION;
-				
-				float32 *points_x = new float32[n_points];
-				float32 *points_y = new float32[n_points];
-				
-				int vx, vy;
-				for(int i=0;i<n_points;++i)
-				{
-					polygon->getVertex(i, &vx, &vy, true);
-					points_x[i] = float32(vx)/float32(10);
-					points_y[i] = float32(vy)/float32(10);
-				}
-				  
-				b2Polygon *pgon = new b2Polygon(points_x, points_y, n_points);
-					
 				b2BodyDef *bodyDef = new b2BodyDef();
 				bodyDef->userData = thing; // So you can always get the thing pointer from a b2body
 				
@@ -214,35 +190,110 @@ bool World::makePhysical(Thing *thing)
 				bodyDef->position.Set(float32((float)posx/10.0f), float32((float)posy/10.0f));
 				bodyDef->angle = polygon->getRotation();
 				
-				b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
-				
-				b2Body* body = 0;
-				if(deleteMe)
+				// Closed polygon: Convert to a set of convex polygons and add them to the body
+				if(polygon->getClosed() == true)
 				{
-					body = b2world->Create(bodyDef);
+					b2PolygonDef *polyDef = new b2PolygonDef();
+					
+					int n_points = polygon->getNVertices();
+					polyDef->vertexCount = n_points;
+					  
+					if( (polygon->getType() == Thing::Solid) || (polygon->getType() == Thing::NonSolid) )
+						polyDef->density = 0.0f;
+					else
+						polyDef->density = DEFAULT_DENSITY;
+					  
+					polyDef->friction = DEFAULT_FRICTION;
+					polyDef->restitution = DEFAULT_RESTITUTION;
+					
+					float32 *points_x = new float32[n_points];
+					float32 *points_y = new float32[n_points];
+					
+					int vx, vy;
+					for(int i=0;i<n_points;++i)
+					{
+						polygon->getVertex(i, &vx, &vy, true);
+						points_x[i] = float32(vx)/float32(10);
+						points_y[i] = float32(vy)/float32(10);
+					}
+					  
+					b2Polygon *pgon = new b2Polygon(points_x, points_y, n_points);
+					
+					b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
+					
+					b2Body* body = 0;
+					if(deleteMe)
+					{
+						body = b2world->Create(bodyDef);
+						polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
+						delete[] deleteMe;
+					}
+					
+					delete polyDef;
+					  
+					delete points_x;
+					delete points_y;
+					
+					delete pgon;
+					
+					if(!deleteMe)
+					{
+						printf("Convex decomposition failed!\n");
+						return false;
+					}
+					
+					if(!body)
+					{
+						printf("Making the body failed!\n");
+						return false;
+					}
+				}
+				else
+				// Open Polygon: Convert to a set of lines (i.e. thin boxes) and add them to the body
+				//
+				// Procedure:
+				// Get a polygon segment, calculate the normal, multiply it by 4, add that to the vertices,
+				// add the resulting vertices to the polygon.
+				{
+					for(int i=0; i<polygon->getNVertices()-1; ++i)
+					{
+						b2PolygonDef *polyDef = new b2PolygonDef();
+						
+						if( (polygon->getType() == Thing::Solid) || (polygon->getType() == Thing::NonSolid) )
+							polyDef->density = 0.0f;
+						else
+							polyDef->density = DEFAULT_DENSITY;
+						
+						polyDef->friction = DEFAULT_FRICTION;
+						polyDef->restitution = DEFAULT_RESTITUTION;
+						
+						int x1, y1, x2, y2;
+						
+						polygon->getVertex(i, &x1, &y1, true);
+						polygon->getVertex(i+1, &x2, &y2, true);
+						
+						int odx = y1 - y2;
+						int ody = x2 - x1;
+						int len = mysqrt(odx*odx + ody*ody);
+						odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
+						ody = (4 * (ody<<8) / len)>>8;
+						
+						polyDef->vertexCount = 4;
+						polyDef->vertices[0].Set(float32(x1)/float32(10), float32(y1)/float32(10));
+						polyDef->vertices[1].Set(float32(x2)/float32(10), float32(y2)/float32(10));
+						polyDef->vertices[2].Set(float32(x2+odx)/float32(10), float32(y2+ody)/float32(10));
+						polyDef->vertices[3].Set(float32(x1+odx)/float32(10), float32(y1+ody)/float32(10));
+						
+						bodyDef->AddShape(b2world->Create(polyDef));
+						
+						delete polyDef;
+					}
+					
+					b2Body *body = b2world->Create(bodyDef);
 					polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
-					delete[] deleteMe;
 				}
 				
-				delete polyDef;
 				delete bodyDef;
-				  
-				delete points_x;
-				delete points_y;
-				
-				delete pgon;
-				
-				if(!deleteMe)
-				{
-					printf("Convex decomposition failed!\n");
-					return false;
-				}
-				
-				if(!body)
-				{
-					printf("Making the body failed!\n");
-					return false;
-				}
 			}
 			break;
 			

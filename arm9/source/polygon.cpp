@@ -2,7 +2,7 @@
 
 Polygon::Polygon(Type _type, CreatedBy _createdby):
 	Thing(_type, _createdby, Thing::Polygon),
-	n_vertices(0)
+	n_vertices(0), closed(false)
 {
 	
 }
@@ -95,4 +95,14 @@ void Polygon::setVertex(int index, int _x, int _y)
 	{
 		printf("TODO: change vtx in b2body\n");
 	}
+}
+
+void Polygon::setClosed(bool closed_)
+{
+	closed = closed_;
+}
+
+bool Polygon::getClosed(void)
+{
+	return closed;
 }
