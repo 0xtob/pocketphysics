@@ -390,11 +390,6 @@ void Canvas::penUp(int x, int y)
 					else
 						poly->setClosed(false);
 					
-					if(poly->getClosed())
-						printf("closed\n");
-					else
-						printf("open\n");
-					
 					// Remove last point if it is too close to the first
 					if(dx*dx+dy*dy < DRAW_MIN_POINT_DIST*DRAW_MIN_POINT_DIST)
 					{
@@ -549,12 +544,12 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	// Alpha: Moves the line texture inside the shape, so lines don't fully overlap when
 	// obejcts collide
 	
-	//float32 alpha = float32(1.3);
+	//float32 alpha = float32(1.5);
 	//b2Vec2 od1 = alpha * od;
 	//b2Vec2 od2 = (float32(2)-alpha) * od;
 	
-	int od1x = (odx * 333) >> 16; // 333 is 1.3 (alpha) in 24.8 fixed point
-	int od1y = (ody * 333) >> 16;
+	int od1x = (odx * 384) >> 16; // 384 is 1.5 (alpha) in 24.8 fixed point
+	int od1y = (ody * 384) >> 16;
 	int od2x = ((2*odx)>>8) - od1x;
 	int od2y = ((2*ody)>>8) - od1y;
 	
