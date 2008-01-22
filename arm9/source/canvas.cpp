@@ -536,10 +536,16 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	
 	int odx = y1 - y2;
 	int ody = x2 - x1;
-	int len = mysqrt(odx*odx + ody*ody);
-	odx = 4 * (odx<<8) / len; // using 24.8 fixed point for normal calculation
-	ody = 4 * (ody<<8) / len;
 	
+	//int len = mysqrt(odx*odx + ody*ody);
+	//odx = 4 * (odx<<8) / len; // using 24.8 fixed point for normal calculation
+	//ody = 4 * (ody<<8) / len;
+	
+	// Even faster than the obove using DS's hardware
+	int len = sqrt32(odx*odx + ody*ody);
+	odx = div32(4 * (odx<<8), len); // using 24.8 fixed point for normal calculation
+	ody = div32(4 * (ody<<8), len);
+		
 	// Alpha: Moves the line texture inside the shape, so lines don't fully overlap when
 	// obejcts collide
 	

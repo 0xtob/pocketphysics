@@ -1,3 +1,5 @@
+- use DS'a hw div and sqrt in box2d!
+- max: 50 objects
 - see forum
 
 bugs:
