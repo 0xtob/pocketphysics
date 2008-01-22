@@ -180,9 +180,9 @@ void draw()
 	
 	ulStartDrawing2D();
 	
-	//if (ulGetMainLcd()) // Bottom Screen
-	//{
-		//videoSetMode(MODE_3_3D);
+	if (ulGetMainLcd()) // Bottom Screen
+	{
+		videoSetMode(MODE_3_3D);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
@@ -199,7 +199,7 @@ void draw()
 		
 		glLoadIdentity();
 		drawSideBar(); drawBottomBar();
-		/*
+		
 	}
 	else // Top Screen
 	{
@@ -217,7 +217,7 @@ void draw()
 		
 		canvas->draw();
 	}
-	*/
+	
 	ulEndDrawing();
 	
 	framedone = true;
@@ -226,7 +226,7 @@ void draw()
 void VBlankHandler()
 {
 	mearureFps();
-	//draw();
+	draw();
 }
 
 void switchScreens(void)
@@ -760,7 +760,7 @@ int main()
 	
 	//Initialize the text part
 	ulInitText();
-	//ulInitDualScreenMode();
+	ulInitDualScreenMode();
 	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
 	
 	ul_firstPaletteColorOpaque=2;
@@ -807,14 +807,14 @@ int main()
 		}
 		accumulated_timesteps = 0;
 		
-		draw();
+		//draw();
 		
 		handleInput();
 		
 		CommandProcessCommands();
 		
-		ulSyncFrame();
-		//swiWaitForVBlank();
+		//ulSyncFrame();
+		swiWaitForVBlank();
 	}
 
 	//Program end - should never get there

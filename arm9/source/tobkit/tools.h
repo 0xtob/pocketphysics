@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <fat.h>
 
+#define min(x,y)	((x)<(y)?(x):(y))
+#define max(x,y)	((x)>(y)?(x):(y))
+
 void lowercase(char *str);
 void crash(const char *msg);
 void *mymalloc(size_t size);

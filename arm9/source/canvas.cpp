@@ -16,8 +16,6 @@
 #define DRAW_POLYGON_CLOSE_DIST	7 //15
 #define DRAW_NEW_POINT_ANGLE    20
 
-#define N_CIRCLE_SEGMENTS		16
-
 Canvas::Canvas(World *_world):
 	world(_world), drawing(false)
 {
@@ -92,10 +90,11 @@ void Canvas::draw(void)
 				int vecy = ( (radius<<12) * SIN_bin[(angle * 512 / 360) % 512] ) >> 12;
 				
 				int lastx=0, lasty=0;
-				for(int i=0;i<=N_CIRCLE_SEGMENTS;++i)
+				int n_segments = max(5, min(16, radius*radius/20));
+				for(int i=0;i<=n_segments;++i)
 				{
-					vecx = ( (radius<<12) * COS_bin[(angle + 512 * i / N_CIRCLE_SEGMENTS) % 512]) >> 12;
-					vecy = ( (radius<<12) * SIN_bin[(angle + 512 * i / N_CIRCLE_SEGMENTS) % 512]) >> 12;
+					vecx = ( (radius<<12) * COS_bin[(angle + 512 * i / n_segments) % 512]) >> 12;
+					vecy = ( (radius<<12) * SIN_bin[(angle + 512 * i / n_segments) % 512]) >> 12;
 					
 					int vx = px + (vecx>>12);
 					int vy = py + (vecy>>12);
@@ -293,8 +292,8 @@ void Canvas::penMove(int x, int y)
 				s32 dx = x - xp;
 				s32 dy = y - yp;
 				
-				double last_len = sqrt((double)(last_dx*last_dx + last_dy*last_dy));
-				double len = sqrt((double)(dx*dx + dy*dy));
+				int last_len = mysqrt(last_dx*last_dx + last_dy*last_dy);
+				int len = mysqrt(dx*dx + dy*dy);
 				
 				double angle = acos((double)(last_dx*dx + last_dy*dy) / (double)( last_len * len )) * 180.0 / M_PI ;
 				
@@ -350,7 +349,7 @@ void Canvas::penMove(int x, int y)
 			
 			int px, py;
 			circle->getPosition(&px, &py);
-			int radius = (int)b2Sqrt(float32((x - px)*(x - px) + (y - py)*(y - py)));
+			int radius = mysqrt((x - px)*(x - px) + (y - py)*(y - py));
 			circle->setRadius(radius);
 		}
 		break;
