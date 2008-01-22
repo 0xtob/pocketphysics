@@ -6,7 +6,7 @@
 #include "thing.h"
 #include "Pin.h"
 
-#define MAX_THINGS			64
+#define MAX_THINGS			50
 #define DEFAULT_GRAVITY		8.0f //60.0f
 #define DEFAULT_DENSITY		5.0f
 #define DEFAULT_FRICTION	0.3f

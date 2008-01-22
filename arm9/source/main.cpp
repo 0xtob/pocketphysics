@@ -41,6 +41,7 @@
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
 #define DEBUG
+//#define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)
@@ -179,10 +180,11 @@ void draw()
 	ulEndFrame();
 	
 	ulStartDrawing2D();
-	
+#ifdef DUALSCREEN
 	if (ulGetMainLcd()) // Bottom Screen
 	{
 		videoSetMode(MODE_3_3D);
+#endif
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
@@ -199,7 +201,7 @@ void draw()
 		
 		glLoadIdentity();
 		drawSideBar(); drawBottomBar();
-		
+#ifdef DUALSCREEN
 	}
 	else // Top Screen
 	{
@@ -216,7 +218,9 @@ void draw()
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
 		
 		canvas->draw();
+		canvas->drawScreenRect(scroll_x, scroll_y);
 	}
+#endif
 	
 	ulEndDrawing();
 	
@@ -226,7 +230,9 @@ void draw()
 void VBlankHandler()
 {
 	mearureFps();
+#ifdef DUALSCREEN
 	draw();
+#endif
 }
 
 void switchScreens(void)
@@ -760,7 +766,9 @@ int main()
 	
 	//Initialize the text part
 	ulInitText();
+#ifdef DUALSCREEN
 	ulInitDualScreenMode();
+#endif
 	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
 	
 	ul_firstPaletteColorOpaque=2;
@@ -787,8 +795,10 @@ int main()
 	for(int i=0;i<60;++i)
 		framesdone[i] = true;
 	
+#ifndef DEBUG
+	fadeIn();
+#endif
 	
-	//fadeIn();
 	BLEND_Y = 0;
 	SUB_BLEND_Y = 0;
 	
@@ -806,15 +816,18 @@ int main()
 			}
 		}
 		accumulated_timesteps = 0;
-		
-		//draw();
-		
+#ifndef DUALSCREEN
+		draw();
+#endif
 		handleInput();
 		
 		CommandProcessCommands();
 		
-		//ulSyncFrame();
+#ifdef DUALSCREEN
 		swiWaitForVBlank();
+#else
+		ulSyncFrame();
+#endif
 	}
 
 	//Program end - should never get there

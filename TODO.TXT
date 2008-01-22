@@ -1,8 +1,6 @@
 - use DS'a hw div and sqrt in box2d!
-- max: 50 objects
 - see forum
 
 bugs:
-freeze wenn play gedrückt ohne objekte auf bildschirm
 objekte die aus dem bild fallen werden nicht disabled
 freeze nach standby (manchmal)

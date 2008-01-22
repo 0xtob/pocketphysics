@@ -517,6 +517,14 @@ void Canvas::penUp(int x, int y)
 		}
 }
 
+void Canvas::drawScreenRect(int sx, int sy)
+{
+	drawLine(RGB15(0,0,0), sx-5,   sy-5,   sx+237, sy-5);
+	drawLine(RGB15(0,0,0), sx-5,   sy+176, sx+237, sy+176);
+	drawLine(RGB15(0,0,0), sx-5,   sy,     sx-5,   sy+181);
+	drawLine(RGB15(0,0,0), sx+237, sy,     sx+237, sy+181);
+}
+
 void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 {
 	static int alphaint = 2;

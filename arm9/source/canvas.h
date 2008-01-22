@@ -20,6 +20,8 @@ class Canvas
 		void penMove(int x, int y);
 		void penUp(int x, int y);
 		
+		void drawScreenRect(int sx, int sy);
+		
 	private:
 		void drawLine(u16 col, int x1, int y1, int x2, int y2);
 		
