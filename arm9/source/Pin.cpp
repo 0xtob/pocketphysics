@@ -45,7 +45,7 @@ void Pin::getPosition(int *_x, int*_y)
 	else
 	{
 		b2Vec2 pos = b2joint->GetAnchor1();
-		*_x = (int)(pos.x * float32(10));
-		*_y = (int)(pos.y * float32(10));
+		*_x = (int)(pos.x * PIXELS_PER_UNIT);
+		*_y = (int)(pos.y * PIXELS_PER_UNIT);
 	}
 }

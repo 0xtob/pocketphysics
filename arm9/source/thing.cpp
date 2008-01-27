@@ -24,8 +24,8 @@ void Thing::setPosition(int _x, int _y)
 	if(b2body)
 	{
 		b2Vec2 origin;
-		origin.x = float32(_x)/float32(10);
-		origin.y = float32(_y)/float32(10);
+		origin.x = float32(_x)/PIXELS_PER_UNIT;
+		origin.y = float32(_y)/PIXELS_PER_UNIT;
 		
 		if(b2body->IsFrozen())
 			printf("cannot set position: body is frozen\n");
@@ -44,8 +44,8 @@ void Thing::getPosition(int *_x, int*_y)
 	else // physical: Get b2Body position
 	{
 		b2Vec2 pos = b2body->GetOriginPosition();
-		*_x=pos.x*10;
-		*_y=pos.y*10;
+		*_x=pos.x*PIXELS_PER_UNIT;
+		*_y=pos.y*PIXELS_PER_UNIT;
 	}
 }
 
@@ -67,8 +67,8 @@ void Thing::setRotation(float32 _rotation)
 	if(b2body)
 	{
 		b2Vec2 origin;
-		origin.x = float32(x)/float32(10);
-		origin.y = float32(y)/float32(10);
+		origin.x = float32(x)/PIXELS_PER_UNIT;
+		origin.y = float32(y)/PIXELS_PER_UNIT;
 		
 		if(b2body->IsFrozen())
 			printf("cannot set position: body is frozen\n");

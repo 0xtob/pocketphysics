@@ -1,5 +1,5 @@
-- use DS'a hw div and sqrt in box2d!
 - see forum
+- pins bei simulation verstecken
 
 bugs:
 objekte die aus dem bild fallen werden nicht disabled

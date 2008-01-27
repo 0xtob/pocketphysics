@@ -77,8 +77,8 @@ void Polygon::getVertex(int index, int *_x, int *_y, bool relative)
 			pos = b2Mul(rot, pos);
 			
 			b2Vec2 origin = b2body->GetOriginPosition();
-			*_x = (int)(pos.x + origin.x*10);
-			*_y = (int)(pos.y + origin.y*10);
+			*_x = (int)(pos.x + origin.x*PIXELS_PER_UNIT);
+			*_y = (int)(pos.y + origin.y*PIXELS_PER_UNIT);
 		}
 	}
 }

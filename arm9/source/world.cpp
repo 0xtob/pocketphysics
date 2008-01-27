@@ -56,8 +56,8 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 		int px, py;
 		pin->getPosition(&px, &py);
 		b2Vec2 pinpos;
-		pinpos.x = float32(px) / float32(10);
-		pinpos.y = float32(py) / float32(10);
+		pinpos.x = float32(px) / PIXELS_PER_UNIT;
+		pinpos.y = float32(py) / PIXELS_PER_UNIT;
 		
 		//jointDef->localAnchor1 = pinpos;
 		//jointDef->localAnchor2 = pinpos;
@@ -128,9 +128,9 @@ Thing *World::removeAt(int x, int y)
 int World::getThingsAt(int x, int y, Thing ** things, int n)
 {
 	b2AABB *touchAABB = new b2AABB();
-	touchAABB->minVertex.Set((float)(x-2)/10.0f, (float)(y-2)/10.0f);
-	touchAABB->maxVertex.Set((float)(x+2)/10.0f, (float)(y+2)/10.0f);
-	b2Vec2 point = b2Vec2(x/10.0f, y/10.0f);
+	touchAABB->minVertex.Set((float32)(x-2)/PIXELS_PER_UNIT, (float32)(y-2)/PIXELS_PER_UNIT);
+	touchAABB->maxVertex.Set((float32)(x+2)/PIXELS_PER_UNIT, (float32)(y+2)/PIXELS_PER_UNIT);
+	b2Vec2 point = b2Vec2(x/PIXELS_PER_UNIT, y/PIXELS_PER_UNIT);
 	
 	b2Shape *shape[16];
 	b2Body *body;
@@ -187,7 +187,7 @@ bool World::makePhysical(Thing *thing)
 				
 				int posx, posy;
 				polygon->getPosition(&posx, &posy);
-				bodyDef->position.Set(float32((float)posx/10.0f), float32((float)posy/10.0f));
+				bodyDef->position.Set(float32((float)posx/PIXELS_PER_UNIT), float32((float)posy/PIXELS_PER_UNIT));
 				bodyDef->angle = polygon->getRotation();
 				
 				// Closed polygon: Convert to a set of convex polygons and add them to the body
@@ -213,8 +213,8 @@ bool World::makePhysical(Thing *thing)
 					for(int i=0;i<n_points;++i)
 					{
 						polygon->getVertex(i, &vx, &vy, true);
-						points_x[i] = float32(vx)/float32(10);
-						points_y[i] = float32(vy)/float32(10);
+						points_x[i] = float32(vx)/PIXELS_PER_UNIT;
+						points_y[i] = float32(vy)/PIXELS_PER_UNIT;
 					}
 					  
 					b2Polygon *pgon = new b2Polygon(points_x, points_y, n_points);
@@ -224,6 +224,9 @@ bool World::makePhysical(Thing *thing)
 					b2Body* body = 0;
 					if(deleteMe)
 					{
+						b2Shape *shl;
+						shl = bodyDef->shapes;
+						
 						body = b2world->Create(bodyDef);
 						polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
 						delete[] deleteMe;
@@ -279,10 +282,10 @@ bool World::makePhysical(Thing *thing)
 						ody = (4 * (ody<<8) / len)>>8;
 						
 						polyDef->vertexCount = 4;
-						polyDef->vertices[0].Set(float32(x1)/float32(10), float32(y1)/float32(10));
-						polyDef->vertices[1].Set(float32(x2)/float32(10), float32(y2)/float32(10));
-						polyDef->vertices[2].Set(float32(x2+odx)/float32(10), float32(y2+ody)/float32(10));
-						polyDef->vertices[3].Set(float32(x1+odx)/float32(10), float32(y1+ody)/float32(10));
+						polyDef->vertices[0].Set(float32(x1)/PIXELS_PER_UNIT, float32(y1)/PIXELS_PER_UNIT);
+						polyDef->vertices[1].Set(float32(x2)/PIXELS_PER_UNIT, float32(y2)/PIXELS_PER_UNIT);
+						polyDef->vertices[2].Set(float32(x2+odx)/PIXELS_PER_UNIT, float32(y2+ody)/PIXELS_PER_UNIT);
+						polyDef->vertices[3].Set(float32(x1+odx)/PIXELS_PER_UNIT, float32(y1+ody)/PIXELS_PER_UNIT);
 						
 						bodyDef->AddShape(b2world->Create(polyDef));
 						
@@ -302,7 +305,7 @@ bool World::makePhysical(Thing *thing)
 				Circle *circle = (Circle*)thing;
 				
 				b2CircleDef *circledef = new b2CircleDef();
-				circledef->radius = float32(circle->getRadius()) / float32(10);
+				circledef->radius = float32(circle->getRadius()) / PIXELS_PER_UNIT;
 				
 				if( (circle->getType() == Thing::Solid) || (circle->getType() == Thing::NonSolid) )
 					circledef->density = 0.0f;
@@ -317,7 +320,7 @@ bool World::makePhysical(Thing *thing)
 				
 				int posx, posy;
 				circle->getPosition(&posx, &posy);
-				bodydef->position.Set(float32((float)posx/10.0f), float32((float)posy/10.0f));
+				bodydef->position.Set(float32((float)posx/PIXELS_PER_UNIT), float32((float)posy/PIXELS_PER_UNIT));
 				bodydef->angle = circle->getRotation();
 				
 				bodydef->AddShape(b2world->Create(circledef));
@@ -428,10 +431,10 @@ void World::initPhysics(void)
 	// Define the size of the world. Simulation will still work
 	// if bodies reach the end of the world, but it will be slower.
 	b2AABB *worldAABB = new b2AABB();
-	float w = (float)width/10.0f;
-	float h = (float)height/10.0f;
-	worldAABB->minVertex.Set(-25.6, -19.2);
-	worldAABB->maxVertex.Set(w+25.6, h+19.2);
+	float32 w = (float32)width/PIXELS_PER_UNIT;
+	float32 h = (float32)height/PIXELS_PER_UNIT;
+	worldAABB->minVertex.Set(-256/PIXELS_PER_UNIT, -192/PIXELS_PER_UNIT);
+	worldAABB->maxVertex.Set(w+256/PIXELS_PER_UNIT, h+192/PIXELS_PER_UNIT);
 	
 	// Define the gravity vector.
 	b2Vec2 grav(gravity_x, gravity_y);
@@ -449,11 +452,11 @@ void World::initPhysics(void)
 void World::makeJointDummy(void)
 {
 	b2PolygonDef *gd = new b2PolygonDef();
-    gd->SetAsBox(0.1f, 0.1f);
+    gd->SetAsBox(10*UNITS_PER_PIXEL, 10*UNITS_PER_PIXEL);
     gd->density = 0;
     
     b2BodyDef *bd = new b2BodyDef();
-    bd->position.Set(-10.0f, -10.0f);
+    bd->position.Set(-100/PIXELS_PER_UNIT, -100/PIXELS_PER_UNIT);
     bd->AddShape(b2world->Create(gd));
     bgbody = b2world->Create(bd);
     

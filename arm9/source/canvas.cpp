@@ -17,7 +17,7 @@
 #define DRAW_NEW_POINT_ANGLE    20
 
 Canvas::Canvas(World *_world):
-	world(_world), drawing(false)
+	world(_world), drawing(false), pins_visible(true)
 {
 	crayon = ulLoadImageFilePNG((const char*)crayon_png, (int)crayon_png_size, UL_IN_VRAM, UL_PF_PAL3_A5);
 }
@@ -86,15 +86,15 @@ void Canvas::draw(void)
 					angle = 512 + angle;
 				
 				//         (  radius<<12  * cos(initial rotation)<<12 ) >> 12
-				int vecx = ( (radius<<12) * COS_bin[(angle * 512 / 360) % 512] ) >> 12;
-				int vecy = ( (radius<<12) * SIN_bin[(angle * 512 / 360) % 512] ) >> 12;
+				int vecx = ( (radius<<6) * (int)COS_bin[(angle * 512 / 360) % 512] ) >> 6;
+				int vecy = ( (radius<<6) * (int)SIN_bin[(angle * 512 / 360) % 512] ) >> 6;
 				
 				int lastx=0, lasty=0;
 				int n_segments = max(5, min(16, radius*radius/20));
 				for(int i=0;i<=n_segments;++i)
 				{
-					vecx = ( (radius<<12) * COS_bin[(angle + 512 * i / n_segments) % 512]) >> 12;
-					vecy = ( (radius<<12) * SIN_bin[(angle + 512 * i / n_segments) % 512]) >> 12;
+					vecx = ( (radius<<6) * (int)COS_bin[(angle + 512 * i / n_segments) % 512]) >> 6;
+					vecy = ( (radius<<6) * (int)SIN_bin[(angle + 512 * i / n_segments) % 512]) >> 6;
 					
 					int vx = px + (vecx>>12);
 					int vy = py + (vecy>>12);
@@ -110,6 +110,8 @@ void Canvas::draw(void)
 			
 			case Thing::Pin:
 			{
+				if(!pins_visible)
+					break;
 				int px, py;
 				Pin *pin = (Pin*)thing;
 				pin->getPosition(&px, &py);
@@ -449,7 +451,7 @@ void Canvas::penUp(int x, int y)
 					// Delete if too small
 					int vx, vy;
 					poly->getVertex(0, &vx, &vy);
-					if( (abs(x-vx) < 3) || (abs(y-vy) < 3) )
+					if( (abs(x-vx) < 3) || (abs(y-vy) < 3) || ( abs(x-vx)*abs(y-vy) < 50 ) )
 					{
 						printf("too small\n");
 						world->remove(poly);
@@ -523,6 +525,16 @@ void Canvas::drawScreenRect(int sx, int sy)
 	drawLine(RGB15(0,0,0), sx-5,   sy+176, sx+237, sy+176);
 	drawLine(RGB15(0,0,0), sx-5,   sy,     sx-5,   sy+181);
 	drawLine(RGB15(0,0,0), sx+237, sy,     sx+237, sy+181);
+}
+
+void Canvas::hidePins(void)
+{
+	pins_visible = false;
+}
+
+void Canvas::showPins(void)
+{
+	pins_visible = true;
 }
 
 void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)

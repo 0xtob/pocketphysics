@@ -46,11 +46,16 @@
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)
 
-#define SCROLL_XMAX		(WORLD_WIDTH-256)
-#define SCROLL_YMAX		(WORLD_HEIGHT-192)
+#define SCROLL_XMAX		(WORLD_WIDTH-256+24)
+#define SCROLL_YMAX		(WORLD_HEIGHT-192+21)
 
 #define SCROLL_ACCEL	1
 #define	SCROLL_VMAX		8
+
+#define KEYS_SCROLL_RIGHT	(KEY_RIGHT | KEY_A)
+#define KEYS_SCROLL_LEFT		(KEY_LEFT | KEY_Y)
+#define KEYS_SCROLL_UP		(KEY_UP | KEY_X)
+#define KEYS_SCROLL_DOWN		(KEY_DOWN | KEY_B)
 
 int scroll_x=0;
 int scroll_y=0;
@@ -318,6 +323,7 @@ void startPlay(void)
 	state.simulating = true;
 	btnplay->hide();
 	btnpause->show();
+	canvas->hidePins();
 }
 
 void pausePlay(void)
@@ -335,6 +341,7 @@ void stopPlay(void)
 	world->reset();
 	btnpause->hide();
 	btnplay->show();
+	canvas->showPins();
 }
 
 void deleteMessageBox(void)
@@ -572,17 +579,17 @@ void handleInput(void)
 		scroll_vx = stylus_scroll_dx / 5;
 		scroll_vy = stylus_scroll_dy / 5;
 	}
-	else if( (keysheld & KEY_RIGHT) && (scroll_vx < SCROLL_VMAX) )
+	else if( (keysheld & KEYS_SCROLL_RIGHT) && (scroll_vx < SCROLL_VMAX) )
 		scroll_vx += passed_frames;
-	else if( (keysheld & KEY_LEFT) && (scroll_vx > -SCROLL_VMAX) )
+	else if( (keysheld & KEYS_SCROLL_LEFT) && (scroll_vx > -SCROLL_VMAX) )
 		scroll_vx -= passed_frames;
 	else if(scroll_vx > 0) {
 		scroll_vx -= passed_frames; if(scroll_vx < 0) scroll_vx = 0;
 	} else if(scroll_vx < 0) {
 		scroll_vx += passed_frames; if(scroll_vx > 0) scroll_vx = 0;
-	} if( (keysheld & KEY_DOWN) && (scroll_vy < SCROLL_VMAX) )
+	} if( (keysheld & KEYS_SCROLL_DOWN) && (scroll_vy < SCROLL_VMAX) )
 		scroll_vy += passed_frames;
-	else if( (keysheld & KEY_UP) && (scroll_vy > -SCROLL_VMAX) )
+	else if( (keysheld & KEYS_SCROLL_UP) && (scroll_vy > -SCROLL_VMAX) )
 		scroll_vy -= passed_frames;
 	else if(scroll_vy > 0) {
 			scroll_vy -= passed_frames; if(scroll_vy < 0) scroll_vy = 0;
@@ -773,8 +780,8 @@ int main()
 	
 	ul_firstPaletteColorOpaque=2;
 	imgbg = ulLoadImageFilePNG((const char*)paper2_png, (int)paper2_png_size, UL_IN_VRAM, UL_PF_PAL8);
-	imgbg->stretchX = WORLD_WIDTH;
-	imgbg->stretchY = WORLD_HEIGHT;
+	imgbg->stretchX = WORLD_WIDTH+24;
+	imgbg->stretchY = WORLD_HEIGHT+21;
 	
 	if(motion_init() != 0)
 	{

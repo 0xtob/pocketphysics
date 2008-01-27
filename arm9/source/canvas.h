@@ -22,6 +22,9 @@ class Canvas
 		
 		void drawScreenRect(int sx, int sy);
 		
+		void hidePins(void);
+		void showPins(void);
+		
 	private:
 		void drawLine(u16 col, int x1, int y1, int x2, int y2);
 		
@@ -30,6 +33,7 @@ class Canvas
 		World *world;
 		Thing *currentthing;
 		bool drawing;
+		bool pins_visible;
 		
 		UL_IMAGE *crayon;
 };

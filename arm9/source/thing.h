@@ -3,6 +3,9 @@
 
 #include <Box2D.h>
 
+#define PIXELS_PER_UNIT	(float32(50))
+#define UNITS_PER_PIXEL	(float32(1)/PIXELS_PER_UNIT)
+
 class Thing
 {
 	public:

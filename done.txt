@@ -9,4 +9,5 @@ since 0.2
 ---------
 - updated to box2d 2.0 (svn r20)
 - if simulation is behind time, 2 steps are performed at once => subjectively faster
+- using ds hw div/sqrt in box2d
 - see git commit messages
