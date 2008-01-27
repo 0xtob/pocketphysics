@@ -13,7 +13,7 @@
 
 #define MAX_POINTS              64
 #define DRAW_MIN_POINT_DIST     7 //15
-#define DRAW_POLYGON_CLOSE_DIST	7 //15
+#define DRAW_POLYGON_CLOSE_DIST	10 //15
 #define DRAW_NEW_POINT_ANGLE    20
 
 Canvas::Canvas(World *_world):

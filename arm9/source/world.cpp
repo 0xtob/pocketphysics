@@ -417,11 +417,13 @@ void World::reset(void)
 	
 	// Reset all things to their original position / rotation
 	for(int i=0;i<n_things;++i)
-	{
 		makeUnphysical(things[i]);
+	
+	for(int i=0;i<n_things;++i)
 		things[i]->reset();
+	
+	for(int i=0;i<n_things;++i)
 		makePhysical(things[i]);
-	}
 }
 
 // ===================================== PRIVATE ===================================== //

@@ -40,8 +40,8 @@
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-//#define DEBUG
-#define DUALSCREEN
+#define DEBUG
+//#define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)
@@ -235,9 +235,8 @@ void draw()
 void VBlankHandler()
 {
 	mearureFps();
-#ifdef DUALSCREEN
+	
 	draw();
-#endif
 }
 
 void switchScreens(void)
@@ -332,6 +331,7 @@ void pausePlay(void)
 	state.simulating = false;
 	btnpause->hide();
 	btnplay->show();
+	canvas->showPins();
 }
 
 void stopPlay(void)
@@ -490,12 +490,12 @@ void handleInput(void)
 	u16 keysheld = keysHeld();
 	touchPosition touch = touchReadXY();
 	
-	// Prevent drawing while scrolling
-		if(keysdown & (KEY_L | KEY_R))
-		{
-			canvas->penUp(touch.px, touch.py);
-			CommandStopSample(0);
-		}
+	// Prevent drawing while scrolling with pen
+	if(keysdown & (KEY_L | KEY_R))
+	{
+		canvas->penUp(touch.px, touch.py);
+		CommandStopSample(0);
+	}
 			
 	bool stylus_scrolling;
 	if( PEN_DOWN && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) )
@@ -870,9 +870,7 @@ int main()
 			}
 		}
 		accumulated_timesteps = 0;
-#ifndef DUALSCREEN
-		draw();
-#endif
+		
 		handleInput();
 		
 		CommandProcessCommands();

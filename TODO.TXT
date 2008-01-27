@@ -1,6 +1,4 @@
 - see forum
-- pins bei simulation verstecken
 
 bugs:
 objekte die aus dem bild fallen werden nicht disabled
-freeze nach standby (manchmal)
