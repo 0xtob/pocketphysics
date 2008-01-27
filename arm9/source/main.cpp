@@ -40,8 +40,8 @@
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-#define DEBUG
-//#define DUALSCREEN
+//#define DEBUG
+#define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)
@@ -62,9 +62,6 @@ int scroll_y=0;
 
 int scroll_vx=0;
 int scroll_vy=0;
-
-int stylus_scroll_x = 0;
-int stylus_scroll_y = 0;
 
 int stylus_scroll_dx = 0;
 int stylus_scroll_dy = 0;
@@ -532,8 +529,8 @@ void handleInput(void)
 			{
 				if(stylus_scrolling)
 				{
-					stylus_scroll_x = touch.px;
-					stylus_scroll_y = touch.py;
+					stylus_scroll_dx = touch.px - 120;
+					stylus_scroll_dy = touch.py - 90;
 				}
 				else if(onCanvas(touch.px, touch.py))
 				{
@@ -550,8 +547,8 @@ void handleInput(void)
 			{
 				if(stylus_scrolling)
 				{
-					stylus_scroll_dx = touch.px - stylus_scroll_x;
-					stylus_scroll_dy = touch.py - stylus_scroll_y;
+					stylus_scroll_dx = touch.px - 120;
+					stylus_scroll_dy = touch.py - 90;
 				}
 				if(onCanvas(touch.px, touch.py))
 					canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
