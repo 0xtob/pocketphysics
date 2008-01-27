@@ -40,8 +40,8 @@
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-#define DEBUG
-//#define DUALSCREEN
+//#define DEBUG
+#define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)
@@ -196,7 +196,7 @@ void draw()
 		glMatrixMode(GL_MODELVIEW);
 		
 		glTranslate3f32(-scroll_x, 0, 0);
-		glTranslate3f32(0.0f, -scroll_y, 0);
+		glTranslate3f32(0, -scroll_y, 0);
 		
 		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
 		ulDrawImageXY(imgbg, 0, 0);
@@ -485,11 +485,18 @@ void handleInput(void)
 {
 	// Check input
 	scanKeys();
-	//u16 keysdown = keysDown();
+	u16 keysdown = keysDown();
 	//u16 keysup = keysUp();
 	u16 keysheld = keysHeld();
 	touchPosition touch = touchReadXY();
 	
+	// Prevent drawing while scrolling
+		if(keysdown & (KEY_L | KEY_R))
+		{
+			canvas->penUp(touch.px, touch.py);
+			CommandStopSample(0);
+		}
+			
 	bool stylus_scrolling;
 	if( PEN_DOWN && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) )
 		stylus_scrolling = true;
@@ -646,8 +653,8 @@ void updateGravity()
 	int Xaccel = motion_read_x(); // this returns a value between 0 and 4095
 	int Yaccel = motion_read_y(); // this returns a value between 0 and 4095
 	
-	float32 xgrav = (float)((Xaccel - motion_x_offset) * 35) / 1638.0f;
-	float32 ygrav = (float)((Yaccel - motion_y_offset) * 35) / 1638.0f;
+	float32 xgrav = (float)((Xaccel - motion_x_offset) * 5) / 1638.0f;
+	float32 ygrav = (float)((Yaccel - motion_y_offset) * 5) / 1638.0f;
 	
 	world->setGravity(-xgrav, ygrav);
 }
@@ -694,15 +701,54 @@ void fadeIn()
 {
 	for(int i=0;i<60;++i)
 	{
+		ulSyncFrame();
+		
 		BLEND_Y = 31-i/2;
-		SUB_BLEND_Y = 31-i/2;
 		
 		ulStartDrawing2D();
-		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-		ulDrawImageXY(imgbg, 0, 0);
-		drawSideBar(); drawBottomBar();
+	
+		if (ulGetMainLcd()) // Bottom Screen
+		{
+			videoSetMode(MODE_3_3D);
+	
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
+			glMatrixMode(GL_MODELVIEW);
+			
+			glTranslate3f32(-scroll_x, 0, 0);
+			glTranslate3f32(0, -scroll_y, 0);
+			
+			ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+			ulDrawImageXY(imgbg, 0, 0);
+			ulSetAlpha(UL_FX_ALPHA, 31, 1);
+			
+			canvas->draw();
+			
+			glLoadIdentity();
+			drawSideBar(); drawBottomBar();
+	
+		}
+		else // Top Screen
+		{
+			videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrthof32(0, WORLD_WIDTH, WORLD_HEIGHT, 0, -4090, 1);
+			glMatrixMode(GL_MODELVIEW);
+						
+			ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+			
+			ulDrawImageXY(imgbg, 0, 0);
+			
+			ulSetAlpha(UL_FX_ALPHA, 31, 1);
+			
+			canvas->draw();
+			canvas->drawScreenRect(scroll_x, scroll_y);
+		}
+	
+		
 		ulEndDrawing();
-		ulSyncFrame();
 	}
 	BLEND_Y = 0;
 	SUB_BLEND_Y = 0;
@@ -771,17 +817,17 @@ int main()
 	drawMainBg();
 	setupGui();
 	
+	ul_firstPaletteColorOpaque=2;
+	imgbg = ulLoadImageFilePNG((const char*)paper2_png, (int)paper2_png_size, UL_IN_VRAM, UL_PF_PAL8);
+	imgbg->stretchX = WORLD_WIDTH+24;
+	imgbg->stretchY = WORLD_HEIGHT+21;
+	
 	//Initialize the text part
 	ulInitText();
 #ifdef DUALSCREEN
 	ulInitDualScreenMode();
 #endif
 	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
-	
-	ul_firstPaletteColorOpaque=2;
-	imgbg = ulLoadImageFilePNG((const char*)paper2_png, (int)paper2_png_size, UL_IN_VRAM, UL_PF_PAL8);
-	imgbg->stretchX = WORLD_WIDTH+24;
-	imgbg->stretchY = WORLD_HEIGHT+21;
 	
 	if(motion_init() != 0)
 	{
@@ -796,7 +842,6 @@ int main()
 		iprintf("Get a DSMotion. They are fun!\n");
 	}
 	
-	irqSet(IRQ_VBLANK, VBlankHandler);
 	irqEnable(IRQ_VBLANK);
 	
 	for(int i=0;i<60;++i)
@@ -805,6 +850,8 @@ int main()
 #ifndef DEBUG
 	fadeIn();
 #endif
+	
+	irqSet(IRQ_VBLANK, VBlankHandler);
 	
 	BLEND_Y = 0;
 	SUB_BLEND_Y = 0;
