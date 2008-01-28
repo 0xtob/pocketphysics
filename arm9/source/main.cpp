@@ -87,6 +87,8 @@ int passed_frames = 0;
 
 bool main_screen_active = false;
 
+bool dont_draw = false;
+
 UL_IMAGE *imgbg;
 
 float32 timeStep = float32(1) / float32(20);
@@ -199,6 +201,7 @@ void draw()
 		ulDrawImageXY(imgbg, 0, 0);
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
 		
+		if(!dont_draw)
 		canvas->draw();
 		
 		glLoadIdentity();
@@ -218,7 +221,7 @@ void draw()
 		ulDrawImageXY(imgbg, 0, 0);
 		
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
-		
+		if(!dont_draw)
 		canvas->draw();
 		canvas->drawScreenRect(scroll_x, scroll_y);
 	}
@@ -333,12 +336,14 @@ void pausePlay(void)
 
 void stopPlay(void)
 {
+	dont_draw = true;
 	CommandPlaySample(smp_play, 48, 255, 0);
 	state.simulating = false;
 	world->reset();
 	btnpause->hide();
 	btnplay->show();
 	canvas->showPins();
+	dont_draw = false;
 }
 
 void deleteMessageBox(void)
@@ -357,6 +362,7 @@ void deleteMessageBox(void)
 void zap(void)
 {
 	stopPlay();
+	dont_draw = true;
 	
 	while(world->getNThings() > 0)
 	{
@@ -367,6 +373,8 @@ void zap(void)
 	
 	CommandPlaySample(smp_del, 48, 255, 0);
 	deleteMessageBox();
+	
+	dont_draw = false;
 }
 
 void askZap(void)
