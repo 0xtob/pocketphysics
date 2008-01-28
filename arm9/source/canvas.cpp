@@ -167,9 +167,10 @@ void Canvas::penDown(int x, int y)
 			Polygon *poly = new Polygon(type, Thing::User);
 			poly->addVertex(x, y);
 			
-			world->add(poly);
-			
-			currentthing = poly;
+			if(world->add(poly))
+				currentthing = poly;
+			else
+				drawing = false;
 		}
 		break;
 		
@@ -184,9 +185,10 @@ void Canvas::penDown(int x, int y)
 			poly->addVertex(x+1, y+1);
 			poly->addVertex(x, y+1);
 			
-			world->add(poly);
-			
-			currentthing = poly;
+			if(world->add(poly))
+				currentthing = poly;
+			else
+				drawing = false;
 		}
 		break;
 		
@@ -197,9 +199,10 @@ void Canvas::penDown(int x, int y)
 			Circle *circle = new Circle(type, Thing::User);
 			circle->setPosition(x, y);
 			
-			world->add(circle);
-			
-			currentthing = circle;
+			if(world->add(circle))
+				currentthing = circle;
+			else
+				drawing = false;
 		}
 		break;
 		

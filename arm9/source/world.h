@@ -22,7 +22,7 @@ class World
 		~World();
 		
 		// Adds a thing , but doesn't make it physical yet
-		void add(Thing *thing);
+		bool add(Thing *thing);
 		
 		// Fixes a thing with a pin (a revolute joint)
 		void pin(Pin *pin, Thing *thing1, Thing *thing2=0);

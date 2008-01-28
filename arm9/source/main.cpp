@@ -63,8 +63,9 @@ int scroll_y=0;
 int scroll_vx=0;
 int scroll_vy=0;
 
-int stylus_scroll_dx = 0;
-int stylus_scroll_dy = 0;
+u16 keysdown=0, keysheld=0;
+
+bool stylus_scrolling;
 
 int touch_was_down = 0;
 int lastx, lasty;
@@ -232,10 +233,73 @@ void draw()
 	framedone = true;
 }
 
+void handleScrolling(void)
+{
+	touchPosition touch = touchReadXY();
+	
+	if( (keysheld & KEY_TOUCH) && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) )
+	{
+		stylus_scrolling = true;
+		scroll_vx = (touch.px - 120) / 5;
+		scroll_vy = (touch.py - 90) / 5;
+	}
+	else
+	{
+		stylus_scrolling = false;
+
+		if( (keysheld & KEYS_SCROLL_RIGHT) && (scroll_vx < SCROLL_VMAX) )
+			scroll_vx ++;
+		else if( (keysheld & KEYS_SCROLL_LEFT) && (scroll_vx > -SCROLL_VMAX) )
+			scroll_vx --;
+		else if(scroll_vx > 0) {
+			scroll_vx --; if(scroll_vx < 0) scroll_vx = 0;
+		} else if(scroll_vx < 0) {
+			scroll_vx ++; if(scroll_vx > 0) scroll_vx = 0;
+		} if( (keysheld & KEYS_SCROLL_DOWN) && (scroll_vy < SCROLL_VMAX) )
+			scroll_vy ++;
+		else if( (keysheld & KEYS_SCROLL_UP) && (scroll_vy > -SCROLL_VMAX) )
+			scroll_vy --;
+		else if(scroll_vy > 0) {
+			scroll_vy --; if(scroll_vy < 0) scroll_vy = 0;
+		} else if(scroll_vy < 0) {
+			scroll_vy ++; if(scroll_vy > 0) scroll_vy = 0;
+		}
+	}
+	
+	if(scroll_vx != 0)
+	{
+		scroll_x += scroll_vx;
+
+		if(scroll_x < 0)
+			scroll_x = 0;
+		if(scroll_x > SCROLL_XMAX)
+			scroll_x = SCROLL_XMAX;
+	}
+
+	if(scroll_vy != 0)
+	{
+		scroll_y += scroll_vy;
+
+		if(scroll_y < 0)
+			scroll_y = 0;
+		if(scroll_y > SCROLL_YMAX)
+			scroll_y = SCROLL_YMAX;
+	}
+}
+
+void updateInput(void)
+{
+	// Check input
+	scanKeys();
+	keysdown |= keysDown();
+	keysheld = keysHeld();
+}
+
 void VBlankHandler()
 {
 	mearureFps();
-	
+	updateInput();
+	handleScrolling();
 	draw();
 }
 
@@ -488,11 +552,6 @@ void request_calibration()
 
 void handleInput(void)
 {
-	// Check input
-	scanKeys();
-	u16 keysdown = keysDown();
-	//u16 keysup = keysUp();
-	u16 keysheld = keysHeld();
 	touchPosition touch = touchReadXY();
 	
 	// Prevent drawing while scrolling with pen
@@ -501,25 +560,16 @@ void handleInput(void)
 		canvas->penUp(touch.px, touch.py);
 		CommandStopSample(0);
 	}
-			
-	bool stylus_scrolling;
-	if( PEN_DOWN && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) )
-		stylus_scrolling = true;
-	else
-		stylus_scrolling = false;
 	
+	// clear keysdown
+	keysdown = 0;
+
 	if(!touch_was_down && PEN_DOWN)
 	{
 		got_good_pen_reading = 0; // Wait one frame until passing the event
 		lastx = touch.px;
 		lasty = touch.py;
 		touch_was_down = 1;
-		
-		if(stylus_scrolling)
-		{
-			stylus_scroll_dx = 0;
-			stylus_scroll_dy = 0;
-		}
 	}
 	else
 	{
@@ -535,12 +585,7 @@ void handleInput(void)
 		{
 			if(!got_good_pen_reading) // PenDown
 			{
-				if(stylus_scrolling)
-				{
-					stylus_scroll_dx = touch.px - 120;
-					stylus_scroll_dy = touch.py - 90;
-				}
-				else if(onCanvas(touch.px, touch.py))
+				if(!stylus_scrolling && onCanvas(touch.px, touch.py))
 				{
 					CommandPlaySample(smp_crayon, 48, 255, 0);
 					canvas->penDown(touch.px + scroll_x, touch.py + scroll_y);
@@ -553,11 +598,6 @@ void handleInput(void)
 			
 			if((abs(touch.px - lastx)>0) || (abs(touch.py - lasty)>0)) // PenMove
 			{
-				if(stylus_scrolling)
-				{
-					stylus_scroll_dx = touch.px - 120;
-					stylus_scroll_dy = touch.py - 90;
-				}
 				if(onCanvas(touch.px, touch.py))
 					canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
 				else
@@ -586,49 +626,6 @@ void handleInput(void)
 		}
 	}
 	
-	if(stylus_scrolling)
-	{
-		scroll_vx = stylus_scroll_dx / 5;
-		scroll_vy = stylus_scroll_dy / 5;
-	}
-	else if( (keysheld & KEYS_SCROLL_RIGHT) && (scroll_vx < SCROLL_VMAX) )
-		scroll_vx += passed_frames;
-	else if( (keysheld & KEYS_SCROLL_LEFT) && (scroll_vx > -SCROLL_VMAX) )
-		scroll_vx -= passed_frames;
-	else if(scroll_vx > 0) {
-		scroll_vx -= passed_frames; if(scroll_vx < 0) scroll_vx = 0;
-	} else if(scroll_vx < 0) {
-		scroll_vx += passed_frames; if(scroll_vx > 0) scroll_vx = 0;
-	} if( (keysheld & KEYS_SCROLL_DOWN) && (scroll_vy < SCROLL_VMAX) )
-		scroll_vy += passed_frames;
-	else if( (keysheld & KEYS_SCROLL_UP) && (scroll_vy > -SCROLL_VMAX) )
-		scroll_vy -= passed_frames;
-	else if(scroll_vy > 0) {
-			scroll_vy -= passed_frames; if(scroll_vy < 0) scroll_vy = 0;
-	} else if(scroll_vy < 0) {
-		scroll_vy += passed_frames; if(scroll_vy > 0) scroll_vy = 0;
-	}
-	
-	if(scroll_vx != 0)
-	{
-		scroll_x += scroll_vx * passed_frames;
-		
-		if(scroll_x < 0)
-			scroll_x = 0;
-		if(scroll_x > SCROLL_XMAX)
-			scroll_x = SCROLL_XMAX;
-	}
-	
-	if(scroll_vy != 0)
-	{
-		scroll_y += scroll_vy * passed_frames;
-		
-		if(scroll_y < 0)
-			scroll_y = 0;
-		if(scroll_y > SCROLL_YMAX)
-			scroll_y = SCROLL_YMAX;
-	}
-	
 	passed_frames = 0;
 	
 	// Special case: User holds down the pen and scrolls => generate penmove event
@@ -636,7 +633,6 @@ void handleInput(void)
 			&& (touch_was_down && PEN_DOWN)
 			&& (onCanvas(touch.px, touch.py) ) )
 		canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
-		
 }
 
 void loadSamples()

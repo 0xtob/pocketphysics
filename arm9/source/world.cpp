@@ -20,13 +20,15 @@ World::~World()
 	
 }
 
-void World::add(Thing *thing)
+bool World::add(Thing *thing)
 {
 	if(n_things == MAX_THINGS)
-		return;
+		return false;
 	
 	things[n_things] = thing;
 	n_things++;
+	
+	return true;
 }
 
 void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
