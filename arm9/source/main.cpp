@@ -218,9 +218,7 @@ void draw()
 		glMatrixMode(GL_MODELVIEW);
 					
 		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-		
 		ulDrawImageXY(imgbg, 0, 0);
-		
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
 		if(!dont_draw)
 		canvas->draw();

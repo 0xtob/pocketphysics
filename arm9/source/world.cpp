@@ -168,6 +168,9 @@ bool World::makePhysical(Thing *thing)
 	if(thing->getShape() == Thing::Pin)
 	{
 		Pin *p = (Pin*)thing;
+		if( p->getThing(1) == 0 )
+			return false;
+		
 		pin(p, p->getThing(1), p->getThing(2));
 	}
 	else

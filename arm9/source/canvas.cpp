@@ -10,6 +10,7 @@
 #include "Pin.h"
 
 #include "crayon_png.h"
+#include "light_png.h"
 
 #define MAX_POINTS              64
 #define DRAW_MIN_POINT_DIST     7 //15
@@ -17,7 +18,7 @@
 #define DRAW_NEW_POINT_ANGLE    20
 
 Canvas::Canvas(World *_world):
-	world(_world), drawing(false), pins_visible(true)
+	world(_world), drawing(false), pins_visible(true), pinthing1(0), pinthing2(0)
 {
 	crayon = ulLoadImageFilePNG((const char*)crayon_png, (int)crayon_png_size, UL_IN_VRAM, UL_PF_PAL3_A5);
 }
@@ -33,7 +34,12 @@ void Canvas::draw(void)
 		if( (thing->getShape() == Thing::Polygon) || (thing->getShape() == Thing::Circle) )
 		{
 			if(thing->getType() == Thing::Dynamic)
-				col = RGB15(0,0,31);
+			{
+				if( (thing == pinthing1) || (thing == pinthing2) )
+					col = RGB15(10,10,31);
+				else
+					col = RGB15(0,0,31);
+			}
 			else if(thing->getType() == Thing::Solid)
 				col = RGB15(31,0,0);
 			else if(thing->getType() == Thing::NonSolid)
@@ -208,9 +214,18 @@ void Canvas::penDown(int x, int y)
 		
 		case pmPin:
 		{
+			drawing = true;
+			
 			// We need some object at this position
 			Thing *things[2] = {0, 0};
 			int count = world->getThingsAt(x, y, things, 2);
+			
+			if(count > 0)
+				pinthing1 = things[0];
+			if(count > 1)
+				pinthing2 = things[1];
+			else
+				pinthing2 = 0;
 			
 			if(count > 0)
 			{
@@ -226,11 +241,11 @@ void Canvas::penDown(int x, int y)
 					return;
 				}
 				Pin *pin = new Pin(x, y);
-				if(count == 1)
-					world->pin(pin, things[0]); // Pins the object to the background
-				else if(count == 2)
-					world->pin(pin, things[0], things[1]); // Pins the objects to each other
-				world->add(pin);
+				
+				if(world->add(pin))
+					currentthing = pin;
+				else
+					drawing = false;
 			}
 			else
 				printf("nothing picked!\n");
@@ -356,6 +371,27 @@ void Canvas::penMove(int x, int y)
 			circle->getPosition(&px, &py);
 			int radius = mysqrt((x - px)*(x - px) + (y - py)*(y - py));
 			circle->setRadius(radius);
+		}
+		break;
+		
+		case pmPin:
+		{
+			if(!drawing)
+				return;
+			
+			Pin *pin = (Pin*)currentthing;
+			
+			pin->setPosition(x, y);
+			
+			Thing *things[2] = {0, 0};
+			int count = world->getThingsAt(x, y, things, 2);
+			
+			if(count > 0)
+				pinthing1 = things[0];
+			if(count > 1)
+				pinthing2 = things[1];
+			else
+				pinthing2 = 0;
 		}
 		break;
 		
@@ -485,6 +521,7 @@ void Canvas::penUp(int x, int y)
 						// Make physical
 						world->makePhysical(poly);
 					}
+					
 					currentthing = 0;
 				}
 				
@@ -513,6 +550,41 @@ void Canvas::penUp(int x, int y)
 					currentthing = 0;
 				}
 				
+				drawing = false;
+			}
+			break;
+			
+			case pmPin:
+			{
+				if(drawing)
+				{
+					Pin *pin = (Pin*)currentthing;
+
+					Thing *things[2] = {0, 0};
+					int count = world->getThingsAt(x, y, things, 2);
+
+					if(count > 0)
+					{
+						if(things[0]->getb2Body() == 0)
+						{
+							printf("weird: thing does not have a body\n");
+							return;
+						}
+						if(   (things[0]->getType() != Thing::Dynamic)
+								&&( (count < 2) || (things[1]->getType() != Thing::Dynamic) ) )
+						{
+							printf("Not pinning static objects\n");
+							return;
+						}
+
+						if(count == 1)
+							world->pin(pin, things[0]); // Pins the object to the background
+						else if(count == 2)
+							world->pin(pin, things[0], things[1]); // Pins the objects to each other
+					}
+					pinthing1 = pinthing2 = 0;
+					currentthing = 0;
+				}
 				drawing = false;
 			}
 			break;
