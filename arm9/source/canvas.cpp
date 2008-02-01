@@ -213,9 +213,7 @@ void Canvas::penDown(int x, int y)
 		break;
 		
 		case pmPin:
-		{
-			drawing = true;
-			
+		{			
 			// We need some object at this position
 			Thing *things[2] = {0, 0};
 			int count = world->getThingsAt(x, y, things, 2);
@@ -229,6 +227,8 @@ void Canvas::penDown(int x, int y)
 			
 			if(count > 0)
 			{
+				drawing = true;
+				
 				if(things[0]->getb2Body() == 0)
 				{
 					printf("weird: thing does not have a body\n");
