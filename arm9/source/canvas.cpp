@@ -17,6 +17,15 @@
 #define DRAW_POLYGON_CLOSE_DIST	10 //15
 #define DRAW_NEW_POINT_ANGLE    20
 
+#define COL_SOLID	RGB15(31,0,0)
+#define COL_DYNAMIC	RGB15(0,0,31)
+#define COL_PIN		RGB15(0,31,0)
+#define SHAPE_ALPHA	20
+#define COL_SOLID_HL    RGB15(31,20,20)
+#define COL_DYNAMIC_HL  RGB15(20,20,31)
+#define COL_PIN_HL      RGB15(20,31,20)
+
+
 Canvas::Canvas(World *_world):
 	world(_world), drawing(false), pins_visible(true), pinthing1(0), pinthing2(0)
 {
@@ -36,14 +45,14 @@ void Canvas::draw(void)
 			if(thing->getType() == Thing::Dynamic)
 			{
 				if( (thing == pinthing1) || (thing == pinthing2) )
-					col = RGB15(10,10,31);
+					col = COL_DYNAMIC_HL;
 				else
-					col = RGB15(0,0,31);
+					col = COL_DYNAMIC;
 			}
 			else if(thing->getType() == Thing::Solid)
-				col = RGB15(31,0,0);
+				col = COL_SOLID;
 			else if(thing->getType() == Thing::NonSolid)
-				col = RGB15(0,31,0);
+				col = COL_PIN;
 		}
 		
 		switch (thing->getShape())
@@ -619,7 +628,7 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	if(alphaint==32)
 		alphaint=2;
 	
-	ulSetAlpha(UL_FX_ALPHA, 20, alphaint);
+	ulSetAlpha(UL_FX_ALPHA, SHAPE_ALPHA, alphaint);
 	
 	// Old float code replaced by fast integer code below
 	//b2Vec2 od;
