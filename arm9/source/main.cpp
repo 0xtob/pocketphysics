@@ -2,6 +2,8 @@
 #include <ulib/ulib.h>
 
 #include <nds/arm9/ndsmotion.h>
+#include <fat.h>
+#include <sys/dir.h>
 
 #include "../../generic/command.h"
 
@@ -30,17 +32,21 @@
 #include "icon_pin_raw.h"
 #include "icon_delete_raw.h"
 #include "icon_zap_raw.h"
+#include "icon_save_raw.h"
+#include "icon_load_raw.h"
+
 
 #include "sound_click_raw.h"
 #include "sound_pen_raw.h"
 #include "sound_play_raw.h"
 #include "sound_del_raw.h"
+#include "tobkit/tools.h"
 
 #define min(x,y)	((x)<(y)?(x):(y))
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-//#define DEBUG
+#define DEBUG
 #define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
@@ -63,7 +69,7 @@ int scroll_y=0;
 int scroll_vx=0;
 int scroll_vy=0;
 
-u16 keysdown=0, keysheld=0;
+u16 keysdown=0, keysheld=0, keysup=0;
 
 bool stylus_scrolling;
 
@@ -90,6 +96,12 @@ bool main_screen_active = false;
 
 bool dont_draw = false;
 
+bool dialog_active = false; // If a dislog is active, send all pen events to the GUI
+
+bool fat_ok = false;
+
+char *current_filename = 0;
+
 UL_IMAGE *imgbg;
 
 float32 timeStep = float32(1) / float32(20);
@@ -110,9 +122,13 @@ Sample *smp_crayon, *smp_play, *smp_click, *smp_del;
 
 MessageBox *mb;
 
+Typewriter *tw;
+
+PPLoadDialog *load_dialog;
+
 // <Side Bar>
 	//BitButton *btnflipmain, *btnflipsub;
-	BitButton *btnplay, *btnstop, *btnpause;
+	BitButton *btnplay, *btnstop, *btnpause, *btnload, *btnsave;
 	ToggleBitButton::ToggleBitButtonGroup *tbbgsidebar;
 	ToggleBitButton /* *tbbselect,*/ *tbbdynamic, *tbbsolid, *tbbnonsolid;
 // </Side Bar>
@@ -121,7 +137,7 @@ MessageBox *mb;
 	ToggleBitButton *tbbbox, *tbbpolygon, *tbbcircle, *tbbpin, *tbbdelete;
 	ToggleBitButton::ToggleBitButtonGroup *tbbgobjects;
 	BitButton *buttonzap;
-// </Bottom Bar>	
+// </Bottom Bar>
 
 void lidSleep()
 {
@@ -168,6 +184,12 @@ void mearureFps()
 	framedone = false;
 }
 
+void drawBgBox(void)
+{
+	ulSetAlpha(UL_FX_ALPHA, 10, 1);
+	ulDrawFillRect(16, 15, 16+219, 15+162, RGB15(0,0,0));
+}
+
 void drawSideBar(void)
 {
 	ulSetAlpha(UL_FX_ALPHA, 10, 1);
@@ -206,12 +228,20 @@ void draw()
 		canvas->draw();
 		
 		glLoadIdentity();
-		drawSideBar(); drawBottomBar();
+		if(!dialog_active)
+		{
+			drawSideBar();
+			drawBottomBar();
+		}
+		else
+		{
+			drawBgBox();
+		}
 #ifdef DUALSCREEN
 	}
 	else // Top Screen
 	{
-		videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+		videoSetMode(MODE_3_3D |  DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrthof32(0, WORLD_WIDTH, WORLD_HEIGHT, 0, -4090, 1);
@@ -221,8 +251,9 @@ void draw()
 		ulDrawImageXY(imgbg, 0, 0);
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
 		if(!dont_draw)
-		canvas->draw();
-		canvas->drawScreenRect(scroll_x, scroll_y);
+			canvas->draw();
+		if(state.draw_window)
+			canvas->drawScreenRect(scroll_x, scroll_y);
 	}
 #endif
 	
@@ -290,6 +321,7 @@ void updateInput(void)
 	// Check input
 	scanKeys();
 	keysdown |= keysDown();
+	keysup |= keysUp();
 	keysheld = keysHeld();
 }
 
@@ -297,7 +329,8 @@ void VBlankHandler()
 {
 	mearureFps();
 	updateInput();
-	handleScrolling();
+	if(!dialog_active)
+		handleScrolling();
 	draw();
 }
 
@@ -408,17 +441,25 @@ void stopPlay(void)
 	dont_draw = false;
 }
 
+void clearGui(void)
+{
+	u16 col = RGB15(0,0,0);
+	u32 colcol = col | col << 16;
+	swiFastCopy(&colcol, main_vram, 192*256/2 | COPY_MODE_FILL);
+}
+
+void redrawGui(void)
+{
+	clearGui();
+	gui->draw();
+}
+
 void deleteMessageBox(void)
 {
 	gui->unregisterOverlayWidget(MAIN_SCREEN);
-	
 	delete mb;
-	
 	mb = 0;
-	
-	for(int y=0;y<171;++y)
-		for(int x=0;x<232;++x)
-			main_vram[256*y+x] = 0;
+	redrawGui();
 }
 
 void zap(void)
@@ -447,6 +488,203 @@ void askZap(void)
 	mb->pleaseDraw();
 }
 
+inline u16 avgcol(u16 col1, u16 col2, u16 col3, u16 col4)
+{
+	return  ( (    (col1 & 31)      + (col2 & 31)       + (col3 & 31)       + (col4 & 31) )      / 4 )
+          | ( ( ( ((col1>>5) & 31)  + ((col2>>5) & 31)  + ((col3>>5) & 31)  + ((col4>>5) & 31))  / 4 ) << 5 )
+          | ( ( ( ((col1>>10) & 31) + ((col2>>10) & 31) + ((col3>>10) & 31) + ((col4>>10) & 31)) / 4 ) << 10);
+}
+
+char *b64screenshot(void)
+{
+	bool draw_window_tmp = state.draw_window;
+	state.draw_window = false;
+	
+	// Wait until a full frame (top and bootom screens) was drawn and
+	// capturing is finished
+	while(ulGetMainLcd());
+	while(!ulGetMainLcd());
+	while(ulGetMainLcd());
+	while(REG_CAPTURE & BIT(31));
+	
+	// Copy VRAM_C, becase this will take longer than a frame
+	u16 *screen = (u16*)malloc(sizeof(u16*)*256*192);
+	dmaCopy(VRAM_C, screen, 256*192*2);
+	
+	state.draw_window = draw_window_tmp;
+	
+	u16 linebuffer[4][64] = {{0}};
+	
+	u16 *screen_scaled = (u16*)malloc(2*64*48);
+	
+	// Scale the image using some cheap box filter. Looks decent IMO.
+	int bufline = 0;
+	for(int y=0; y<192; ++y)
+	{
+		for(int x=0; x<64; ++x)
+		{
+			linebuffer[bufline][x] = avgcol( screen[256*y+(4*x)+0],
+					screen[256*y+(4*x)+1],
+					screen[256*y+(4*x)+2],
+					screen[256*y+(4*x)+3]);
+		}
+		
+		bufline++;
+		
+		if(bufline == 4)
+		{
+			for(int x=0; x<64; ++x)
+			{
+				screen_scaled[64*(y/4)+x] = avgcol( linebuffer[0][x],
+												linebuffer[1][x],
+												linebuffer[2][x],
+												linebuffer[3][x]) | BIT(15);
+			}
+			
+			bufline = 0;
+		}
+	}
+	
+	char *b64screen;
+	b64encode((u8*)screen_scaled, 2*64*48, &b64screen);
+	
+	free(screen);
+	free(screen_scaled);
+	
+	return b64screen;
+}
+
+void save(void)
+{
+	char *thumbnail = b64screenshot();
+	world->save(current_filename, thumbnail);
+	free(thumbnail);
+}
+
+void showTypewriter(const char *prompt, const char *str, void (*okCallback)(void), void (*cancelCallback)(void))
+{
+	dialog_active = true;
+	
+	clearGui();
+	
+	tw = new Typewriter(prompt, (u16*)CHAR_BASE_BLOCK(1),
+		(u16*)SCREEN_BASE_BLOCK(12), 3, &main_vram, &BG1_X0, &BG1_Y0);
+	
+	tw->setText(str);
+	gui->registerOverlayWidget(tw, KEY_LEFT|KEY_RIGHT, MAIN_SCREEN);
+	if(okCallback!=0) {
+		tw->registerOkCallback(okCallback);
+	}
+	if(cancelCallback != 0) {
+		tw->registerCancelCallback(cancelCallback);
+	}
+	tw->show();
+	tw->pleaseDraw();
+}
+
+void deleteTypewriter(void)
+{
+	gui->unregisterOverlayWidget(MAIN_SCREEN);
+	delete tw;
+	
+	redrawGui();
+	
+	dialog_active = false;
+}
+
+void overwriteFile(void)
+{
+	save();
+	deleteMessageBox();
+}
+
+void handleSaveDialogOk(void)
+{
+	char *text = tw->getText();
+	
+	// Append extension if neccessary
+	if(strcmp(text,"") != 0)
+	{
+		char *name;
+		if( strcmp(text+strlen(text)-3, ".pp") != 0 ) {
+			// Append extension
+			name = (char*)malloc(strlen(text)+3+1);
+			strcpy(name,text);
+			strcpy(name+strlen(name),".pp");
+		} else {
+			// Leave as is
+			name = (char*)malloc(strlen(text)+1);
+			strcpy(name,text);
+		}
+
+		deleteTypewriter();
+		
+		printf("Saving %s\n", name);
+		
+		strncpy(current_filename, name, 256);
+		
+		// Check if the file already exists
+		char* fullname = (char*)calloc(1,256);
+		sprintf(fullname, "%s/%s", "pocketphysics/sketches", name);
+		
+		FILE* f = fopen(fullname,"r");
+
+		if( f != 0 )
+		{
+			mb = new MessageBox(&main_vram, "overwrite file", 2, "yes", overwriteFile, "no", deleteMessageBox);
+			gui->registerOverlayWidget(mb, 0, MAIN_SCREEN);
+			mb->show();
+			mb->pleaseDraw();
+		}
+		else
+		{
+			fclose(f);
+			save();
+		}
+		
+		free(fullname);
+		free(name);
+	}
+}
+
+void deleteLoadDialog(void)
+{
+	gui->unregisterOverlayWidget(MAIN_SCREEN);
+	delete load_dialog;
+
+	redrawGui();
+
+	dialog_active = false;
+}
+
+void handleLoadDialogOk(void)
+{
+	printf("Loading %s\n", load_dialog->getFilename());
+	world->load(load_dialog->getFilename());
+	deleteLoadDialog();
+}
+
+void showLoadDialog(void)
+{
+	printf("Load Dialog\n");
+	
+	load_dialog = new PPLoadDialog(&main_vram);
+	dialog_active = true;
+	clearGui();
+	
+	gui->registerOverlayWidget(load_dialog, 0, MAIN_SCREEN);
+	load_dialog->registerOkCallback(handleLoadDialogOk);
+	load_dialog->registerCancelCallback(deleteLoadDialog);
+	
+	load_dialog->show();
+}
+
+void showSaveDialog(void)
+{
+	printf("Save\n");
+	showTypewriter("save as", current_filename, handleSaveDialogOk, deleteTypewriter);
+}
+
 void setupGui(void)
 {
 	gui = new GUI;
@@ -462,11 +700,17 @@ void setupGui(void)
 		
 		tbbgsidebar->registerChangeCallback(tbbgsidebarChanged);
 		
-		btnplay = new BitButton(233, 171, 22, 19, &main_vram, icon_play_raw, 12, 12, 5, 1);
-		btnplay->registerPushCallback(startPlay);
+		btnload = new BitButton(233, 101, 22, 19, &main_vram, icon_load_raw, 18, 15, 2, 1);
+		btnload->registerPushCallback(showLoadDialog);
+		
+		btnsave = new BitButton(233, 121, 22, 19, &main_vram, icon_save_raw, 18, 15, 2, 1);
+		btnsave->registerPushCallback(showSaveDialog);
 		
 		btnstop = new BitButton(233, 151, 22, 19, &main_vram, icon_stop_raw, 12, 12, 5, 1);
 		btnstop->registerPushCallback(stopPlay);
+		
+		btnplay = new BitButton(233, 171, 22, 19, &main_vram, icon_play_raw, 12, 12, 5, 1);
+		btnplay->registerPushCallback(startPlay);
 		
 		btnpause = new BitButton(233, 171, 22, 19, &main_vram, icon_pause_raw, 12, 12, 5, 1);
 		btnpause->registerPushCallback(pausePlay);
@@ -475,6 +719,15 @@ void setupGui(void)
 		gui->registerWidget(tbbdynamic, 0, MAIN_SCREEN);
 		gui->registerWidget(tbbsolid, 0, MAIN_SCREEN);
 		//gui->registerWidget(tbbnonsolid, 0, MAIN_SCREEN);
+#ifndef DEBUG
+		if(fat_ok)
+		{
+#endif
+			gui->registerWidget(btnload, 0, MAIN_SCREEN);
+			gui->registerWidget(btnsave, 0, MAIN_SCREEN);
+#ifndef DEBUG
+		}
+#endif
 		gui->registerWidget(btnpause, 0, MAIN_SCREEN);
 		gui->registerWidget(btnplay, 0, MAIN_SCREEN);
 		gui->registerWidget(btnstop, 0, MAIN_SCREEN);
@@ -559,6 +812,19 @@ void handleInput(void)
 		CommandStopSample(0);
 	}
 	
+	if(keysdown && dialog_active) // Send keys to the gui (for left/right navigating in keyboard)
+	{
+		gui->buttonPress(keysdown);
+	}
+	
+	if(keysup && dialog_active)
+	{
+		gui->buttonRelease(keysup);
+	}
+	
+	if(keysdown & KEY_SELECT)
+		state.draw_window = !state.draw_window;
+	
 	// clear keysdown
 	keysdown = 0;
 
@@ -583,7 +849,7 @@ void handleInput(void)
 		{
 			if(!got_good_pen_reading) // PenDown
 			{
-				if(!stylus_scrolling && onCanvas(touch.px, touch.py))
+				if(!stylus_scrolling && onCanvas(touch.px, touch.py) && !dialog_active)
 				{
 					CommandPlaySample(smp_crayon, 48, 255, 0);
 					canvas->penDown(touch.px + scroll_x, touch.py + scroll_y);
@@ -596,7 +862,7 @@ void handleInput(void)
 			
 			if((abs(touch.px - lastx)>0) || (abs(touch.py - lasty)>0)) // PenMove
 			{
-				if(onCanvas(touch.px, touch.py))
+				if(onCanvas(touch.px, touch.py) && !dialog_active)
 					canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
 				else
 					gui->penMove(touch.px, touch.py);
@@ -606,7 +872,7 @@ void handleInput(void)
 			}
 		}
 	}
-	
+
 	// DSMotion shortcut for swappers
 	if( (keysheld & KEY_L) && (keysheld & KEY_R) )
 	{
@@ -759,7 +1025,7 @@ int main()
 	
 	ulInitGfx();
 	
-	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
 #ifdef DEBUG
 	videoSetModeSub(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG2_ACTIVE);
 #else
@@ -768,14 +1034,18 @@ int main()
 	vramSetBankB(VRAM_B_MAIN_BG_0x06000000);
 	vramSetBankC(VRAM_C_SUB_BG_0x06200000);
 	
-	BG0_CR = BG_PRIORITY(1);
+	// Main BG0: 3D
+	BG0_CR = BG_PRIORITY(2);
 	
 	// Main BG3: ERB
-	BG3_CR = BG_BMP16_256x256 | BG_BMP_BASE(2) | BG_PRIORITY(0);
+	BG3_CR = BG_BMP16_256x256 | BG_BMP_BASE(2) | BG_PRIORITY(1);
 	BG3_XDX = 1 << 8;
 	BG3_XDY = 0;
 	BG3_YDX = 0;
 	BG3_YDY = 1 << 8;
+	
+	// Main BG1: Keyboard
+	BG1_CR = BG_COLOR_16 | BG_32x32 | BG_MAP_BASE(12) | BG_TILE_BASE(1);
 	
 	// Sub BG0: Text
 	SUB_BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_PRIORITY(0);
@@ -826,7 +1096,11 @@ int main()
 #ifdef DUALSCREEN
 	ulInitDualScreenMode();
 #endif
-	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
+	
+	current_filename = (char*)calloc(1, 256);
+	
+	fat_ok = fatInitDefault();
 	
 	if(motion_init() != 0)
 	{

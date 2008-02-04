@@ -8,6 +8,12 @@ Pin::Pin(int _x, int _y):
 	y=_y;
 }
 
+Pin::Pin(TiXmlElement *thingelement):
+	Thing(thingelement), thing1(0), thing2(0), b2joint(0)
+{
+	shape = Thing::Pin;
+}
+
 void Pin::setThing(int nr, Thing *_thing)
 {
 	if(nr == 1)
@@ -48,4 +54,14 @@ void Pin::getPosition(int *_x, int*_y)
 		*_x = (int)(pos.x * PIXELS_PER_UNIT);
 		*_y = (int)(pos.y * PIXELS_PER_UNIT);
 	}
+}
+
+TiXmlElement *Pin::toXML(void)
+{
+	TiXmlElement *element = new TiXmlElement("pin");
+
+	element->SetAttribute("x", x);
+	element->SetAttribute("y", y);
+	
+	return element;
 }

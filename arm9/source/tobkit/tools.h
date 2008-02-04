@@ -49,4 +49,7 @@ void printMallInfo(void);
 
 int mysqrt(int x);
 
+int b64decode(const char *code, char **res);
+void b64encode(u8 *indata, u32 insize, char **outdata);
+
 #endif

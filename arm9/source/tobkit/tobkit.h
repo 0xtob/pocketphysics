@@ -34,7 +34,7 @@
 #include "button.h"
 #include "bitbutton.h"
 #include "togglebitbutton.h"
-#include "tobkit.h"
+#include "loaddialog.h"
 
 #endif
 

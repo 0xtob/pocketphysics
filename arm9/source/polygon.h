@@ -9,6 +9,7 @@ class Polygon: public Thing
 {
 	public:
 		Polygon(Type _type, CreatedBy _createdby);
+		Polygon(TiXmlElement *thingelement);
 		void addVertex(int x, int y);
 		void removeVertex(int index);
 		int getNVertices(void);
@@ -21,6 +22,8 @@ class Polygon: public Thing
 		
 		void setClosed(bool closed_);
 		bool getClosed(void);
+		
+		TiXmlElement *toXML(void);
 		
 	private:
 		int vertices_x[MAX_VERTICES];

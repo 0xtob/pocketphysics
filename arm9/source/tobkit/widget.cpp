@@ -308,6 +308,15 @@ void Widget::drawMonochromeIcon(u8 tx, u8 ty, u8 tw, u8 th, const u8 *icon) {
 	}
 }
 
+void Widget::drawImage(u8 tx, u8 ty, u8 tw, u8 th, const u16 *image)
+{
+	for(u8 j=0;j<th;++j) {
+		for(u8 i=0;i<tw;++i) {
+			(*vram)[SCREEN_WIDTH*(y+ty+j)+x+tx+i] = image[tw*j+i];
+		}
+	}
+}
+
 // Stylus utility functions
 bool Widget::isInRect(u8 x, u8 y, u8 x1, u8 y1, u8 x2, u8 y2)
 {

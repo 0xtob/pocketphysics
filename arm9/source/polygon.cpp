@@ -7,6 +7,28 @@ Polygon::Polygon(Type _type, CreatedBy _createdby):
 	
 }
 
+Polygon::Polygon(TiXmlElement *thingelement):
+	Thing(thingelement), n_vertices(0), closed(false)
+{
+	shape = Thing::Polygon;
+	
+	int closed_;
+	thingelement->QueryIntAttribute("closed", &closed_);
+	if(closed_ == 0)
+		closed = false;
+	else
+		closed = true;
+	
+	for(TiXmlElement *vtxelement = thingelement->FirstChildElement(); vtxelement; vtxelement = vtxelement->NextSiblingElement())
+	{
+		int vx, vy;
+		vtxelement->QueryIntAttribute("x", &vx);
+		vtxelement->QueryIntAttribute("y", &vy);
+		addVertex(vx, vy);
+		//printf("  vtx: %d %d\n", vx, vy);
+	}
+}
+
 void Polygon::addVertex(int x, int y)
 {
 	if(n_vertices == MAX_VERTICES)
@@ -105,4 +127,19 @@ void Polygon::setClosed(bool closed_)
 bool Polygon::getClosed(void)
 {
 	return closed;
+}
+
+TiXmlElement *Polygon::toXML(void)
+{
+	TiXmlElement *element = new TiXmlElement("polygon");
+	addGenericXMLAttributes(element);
+	element->SetAttribute("closed", closed?1:0);
+	for(int i=0; i<n_vertices; ++i)
+	{
+		TiXmlElement *vtxelement = new TiXmlElement("vertex");
+		vtxelement->SetAttribute("x", vertices_x[i]);
+		vtxelement->SetAttribute("y", vertices_y[i]);
+		element->LinkEndChild(vtxelement);
+	}
+	return element;
 }

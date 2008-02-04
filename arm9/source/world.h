@@ -8,9 +8,6 @@
 
 #define MAX_THINGS			50
 #define DEFAULT_GRAVITY		2.0f//8.0f //60.0f
-#define DEFAULT_DENSITY		1.0f//5.0f
-#define DEFAULT_FRICTION	0.3f
-#define DEFAULT_RESTITUTION	0.2f
 
 #define TIMESTEP			(float32(1.0f / 30.0f))
 #define ITERATIONS			3//6
@@ -55,6 +52,9 @@ class World
 		void step(float32 timestep = TIMESTEP);
 		
 		void reset(void);
+		
+		void save(char *filename, char *thumbnail);
+		bool load(char *filename);
 		
 	private:
 		Thing* things[MAX_THINGS];

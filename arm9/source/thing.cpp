@@ -6,6 +6,24 @@ Thing::Thing(Type _type, CreatedBy _createdby, Shape _shape):
 	
 }
 
+Thing::Thing(TiXmlElement *thingelement):
+	x(0), y(0), rotation(0.0f), b2body(0)
+{
+	if( strcmp(thingelement->Attribute("type"), "solid") == 0 )
+		type = Solid;
+	else if( strcmp(thingelement->Attribute("type"), "dynamic") == 0 )
+		type = Dynamic;
+	
+	createdby = User;
+	
+	thingelement->QueryIntAttribute("x", &x);
+	thingelement->QueryIntAttribute("y", &y);
+	double rot;
+	thingelement->QueryDoubleAttribute("rotation", &rot);
+	rotation = rot;
+	// TODO: density, friction, restitution
+}
+
 Thing::Shape Thing::getShape(void)
 {
 	return shape;
@@ -98,4 +116,20 @@ void Thing::reset(void)
 	
 	setPosition(x, y);
 	setRotation(rotation);
+}
+
+// ===================================== PROTECTED ===================================== //
+
+void Thing::addGenericXMLAttributes(TiXmlElement *thingelement)
+{
+	if(type==Solid)
+		thingelement->SetAttribute("type", "solid");
+	else if(type==Dynamic)
+		thingelement->SetAttribute("type", "dynamic");
+	thingelement->SetDoubleAttribute("density", DEFAULT_DENSITY);
+	thingelement->SetDoubleAttribute("friction", DEFAULT_FRICTION);
+	thingelement->SetDoubleAttribute("restitution", DEFAULT_RESTITUTION);
+	thingelement->SetAttribute("x", x);
+	thingelement->SetAttribute("y", y);
+	thingelement->SetDoubleAttribute("rotation", rotation);
 }

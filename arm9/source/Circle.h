@@ -7,9 +7,12 @@ class Circle : public Thing
 {
 	public:
 		Circle(Type _type, CreatedBy _createdby);
+		Circle(TiXmlElement *thingelement);
 		
 		void setRadius(int radius);
 		int getRadius(void);
+		
+		TiXmlElement *toXML(void);
 		
 	private:
 		int radius;

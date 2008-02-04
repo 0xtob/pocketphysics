@@ -48,14 +48,14 @@ class Typewriter: public Widget {
 	
 		u8 kx, ky; // Keyboard offset in tiles (1t=8px)
 	
-		Label *label, *msglabel;
+		Label *label;
 		GUI gui;
 		Button *buttonok, *buttoncancel;
 	
 		u8 mode;
 		vuint16 *trans_reg_x, *trans_reg_y;
 
-		char *text;
+		char *text, *message;
 		u16 cursorpos, strlength;
 	
 		void draw(void);

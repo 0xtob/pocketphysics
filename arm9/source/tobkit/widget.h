@@ -62,6 +62,7 @@ class Widget {
 		void drawGradient(u16 col1, u16 col2, u8 tx, u8 ty, u8 tw, u8 th);
 		inline const u16 interpolateColor(u16 col1, u16 col2, u8 alpha);
 		void drawMonochromeIcon(u8 tx, u8 ty, u8 tw, u8 th, const u8 *icon);
+		void drawImage(u8 tx, u8 ty, u8 tw, u8 th, const u16 *image);
 		
 		// Stylus utility functions
 		bool isInRect(u8 x, u8 y, u8 x1, u8 y1, u8 x2, u8 y2);

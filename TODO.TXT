@@ -1,3 +1,4 @@
+- clever deleting
 - see forum
 
 bugs:

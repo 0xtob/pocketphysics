@@ -6,6 +6,9 @@
 #include "tools.h"
 
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
+#include <tinyxml.h>
 
 World::World(int _width, int _height):
 	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY)
@@ -41,12 +44,12 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 	if(thing2 == 0)
 	{
 		body2 = bgbody;
-		printf("pinning %x to bg\n", body1);
+		printf("pinning %x to bg\n", (uint)body1);
 	}
 	else
 	{
 		body2 = thing2->getb2Body();
-		printf("pinning %x to %x\n", body1, body2);
+		printf("pinning %x to %x\n", (uint)body1, (uint)body2);
 	}
 	
 	if(body1 != 0)
@@ -64,7 +67,6 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 		//jointDef->localAnchor1 = pinpos;
 		//jointDef->localAnchor2 = pinpos;
 		jointDef->SetInWorld(pinpos);
-		
 		b2Joint* joint = b2world->Create(jointDef);
 		pin->setb2Joint(joint);
 		
@@ -432,6 +434,190 @@ void World::reset(void)
 	
 	for(int i=0;i<n_things;++i)
 		makePhysical(things[i]);
+}
+
+void World::save(char *filename, char *thumbnail)
+{
+	if(!diropen("pocketphysics"))
+	{
+		printf("making directory\n");
+		mkdir("pocketphysics", 777);
+	}
+	if(!diropen("pocketphysics"))
+	{
+		printf("diropen failed!\n");
+		return;
+	}
+	if(!diropen("pocketphysics/sketches"))
+	{
+		mkdir("pocketphysics/sketches", 777);
+	}
+	
+	// Header
+	
+	TiXmlDocument doc;
+	TiXmlDeclaration *decl = new TiXmlDeclaration( "1.0", "", "" );
+	doc.LinkEndChild( decl );
+	
+	// World
+	
+	Thing **idtable = (Thing**)malloc(sizeof(Thing*) * (n_things+1));
+	
+	TiXmlElement *worldelement = new TiXmlElement( "world" );
+	worldelement->SetDoubleAttribute("gravity_x", DEFAULT_GRAVITY);
+	worldelement->SetDoubleAttribute("gravity_y", 0.0);
+	
+	for(int i=0; i<n_things; ++i)
+	{
+		int id = i+1;
+		Thing *thing = things[i];
+		idtable[id] = thing;
+		
+		TiXmlElement *thingelement = thing->toXML();
+		
+		if(thing->getShape() == Thing::Pin)
+		{
+			Pin *pin = (Pin*)thing;
+			
+			for(int j=0; j<2; ++j)
+			{
+				int pinned_id = 0;
+				
+				Thing *pinned_thing = pin->getThing(j+1);
+				if(pinned_thing)
+				{
+					while( (idtable[pinned_id] != pinned_thing) && (pinned_id < n_things+1) )
+						++pinned_id;
+					
+					if(pinned_id == n_things+1)
+						printf("Weird: Pinned thing not found!\n");
+				}
+				
+				TiXmlElement *pinnedthingelement = new TiXmlElement("pinned_thing");
+				pinnedthingelement->SetAttribute("id", pinned_id);
+				thingelement->LinkEndChild(pinnedthingelement);
+			}
+		}
+		else
+		{
+			thingelement->SetAttribute("id", id);
+		}
+		worldelement->LinkEndChild(thingelement);
+	}
+	
+	doc.LinkEndChild(worldelement);
+	
+	free(idtable);
+	
+	// Thumbnail
+	
+	TiXmlElement *imageelement = new TiXmlElement( "image" );
+	TiXmlText *imagetext = new TiXmlText( thumbnail );
+	imageelement->LinkEndChild(imagetext);
+	
+	doc.LinkEndChild(imageelement);
+	
+	// Save
+	
+	char *f = (char*)calloc(1, 255);
+	sprintf(f, "%s/%s", "pocketphysics/sketches", filename);
+	doc.SaveFile(f);
+	free(f);
+}
+
+bool World::load(char *filename)
+{
+	// Clear
+	while(n_things > 0)
+	{
+		Thing *t = getThing(0);
+		remove(t);
+		delete t;
+	}
+	
+	// Load
+	char *f = (char*)calloc(1, 255);
+	sprintf(f, "%s/%s", "pocketphysics/sketches", filename);
+	TiXmlDocument doc(f);
+	free(f);
+	
+	if( !doc.LoadFile() )
+		return false;
+	
+	// World
+	TiXmlElement *worldelement = doc.FirstChildElement("world");
+	float gx=DEFAULT_GRAVITY, gy=0.0;
+	worldelement->QueryFloatAttribute("gravity_x", &gx);
+	worldelement->QueryFloatAttribute("gravity_y", &gy);
+	gravity_x = gx;
+	gravity_y = gy;
+	
+	printf("gravity %f %f\n", gx, gy);
+	
+	Thing **id_table = (Thing**)calloc(1, sizeof(Thing*)*MAX_THINGS);
+	
+	for(TiXmlElement *thingelement = worldelement->FirstChildElement(); thingelement;
+		thingelement=thingelement->NextSiblingElement())
+	{
+		Thing::Type type;
+		if(strcmp(thingelement->Attribute("type"), "dynamic") == 0)
+			type = Thing::Dynamic;
+		else if(strcmp(thingelement->Attribute("type"), "static") == 0)
+			type = Thing::Solid;
+		
+		int id = 0;
+		thingelement->QueryIntAttribute("id", &id);
+		
+		Thing *thing = 0;
+		if(strcmp("circle", thingelement->Value()) == 0)
+		{
+			printf("%d: circle\n", id);
+			thing = new Circle(thingelement);
+		}
+		else if(strcmp("polygon", thingelement->Value()) == 0)
+		{
+			printf("%d: polygon\n", id);
+			thing = new Polygon(thingelement);
+		}
+		else if(strcmp("pin", thingelement->Value()) == 0)
+		{
+			printf("%d: pin\n", id);
+			thing = new Pin(thingelement);
+			Pin *pin_ = (Pin*)thing;
+			
+			int pinned_ids[2] = {0, 0};
+			
+			TiXmlElement *pinned_element = thingelement->FirstChildElement();
+			pinned_element->QueryIntAttribute("id", &pinned_ids[0]);
+			pinned_element = pinned_element->NextSiblingElement();
+			pinned_element->QueryIntAttribute("id", &pinned_ids[1]);
+			
+			printf("  pinned %d to %d\n", pinned_ids[0], pinned_ids[1]);
+			
+			for(int j=0; j<2; ++j)
+			{
+				if(pinned_ids[j] != 0)
+					pin_->setThing(j+1, id_table[pinned_ids[j]]);
+			}
+		}
+		else
+		{
+			printf("Invalid object type!\n");
+			delete id_table;
+			return false;
+		}
+		id_table[id] = thing;
+		
+		add(thing);
+		makePhysical(thing);
+		
+		printf("Thing loaded\n");
+	}
+	printf("Loading finished\n");
+	
+	delete id_table;
+	
+	return true;
 }
 
 // ===================================== PRIVATE ===================================== //

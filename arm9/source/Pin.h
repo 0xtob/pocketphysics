@@ -7,6 +7,7 @@ class Pin : public Thing
 {
 	public:
 		Pin(int _x, int _y);
+		Pin(TiXmlElement *thingelement);
 		
 		// Pins can have 2 things, so nr must be 1 or 2
 		void setThing(int nr, Thing *_thing);
@@ -14,6 +15,8 @@ class Pin : public Thing
 		void setb2Joint(b2Joint *_joint);
 		b2Joint *getb2Joint(void);
 		void getPosition(int *_x, int*_y);
+		
+		TiXmlElement *toXML(void);
 		
 	private:
 		Thing *thing1, *thing2;

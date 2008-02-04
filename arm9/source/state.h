@@ -7,6 +7,7 @@ public:
 	State();
 	
 	bool simulating;
+	bool draw_window;
 };
 
 #endif

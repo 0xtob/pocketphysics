@@ -32,6 +32,7 @@ $(TARGET).gba.nds: $(TARGET).nds
 	cat ndsloader.bin $(TARGET).nds > $(TARGET).gba.nds
 
 cp: all
+	dlditool ~/coding/dsdev/tools/dldi/mpcf.dldi $(TARGET).nds
 	cp $(TARGET).nds /media/GBAMP
 	pumount /media/GBAMP
 

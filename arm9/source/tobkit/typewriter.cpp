@@ -18,8 +18,8 @@
 
 #define MAX_TEXT_LEN	20
 
-#define TW_WIDTH	216
-#define TW_HEIGHT	127
+#define TW_WIDTH	219
+#define TW_HEIGHT	162
 
 /* ===================== PUBLIC ===================== */
 
@@ -28,37 +28,38 @@ Typewriter::Typewriter(const char *_msg, u16 *_char_base,
 	vuint16* _trans_reg_y)
 	:Widget((SCREEN_WIDTH-TW_WIDTH)/2, (SCREEN_HEIGHT-TW_HEIGHT)/2-15, TW_WIDTH, TW_HEIGHT, _vram),
 	char_base(_char_base), map_base(_map_base),
-	kx(x+4), ky(y+16),
+	kx(x+4), ky(y+46),
 	mode(MODE_NORMAL),
 	trans_reg_x(_trans_reg_x), trans_reg_y(_trans_reg_y), cursorpos(0), strlength(0)
 {
-	//char_base = (u16*)CHAR_BASE_BLOCK_SUB(1);
-	//map_base = (u16*)SCREEN_BASE_BLOCK_SUB(12);
 	palette_offset = 3; // I have no clue why, but reading the _palette_offset parameter causes an immediate crash.
 	//palette_offset = _palette_offset;
 	
 	onOk = 0;
 	onCancel = 0;
 
-	dmaCopy((uint16*)typewriter_Palette, (uint16*)BG_PALETTE_SUB+palette_offset*16, 32);
+	dmaCopy((uint16*)typewriter_Palette, (uint16*)BG_PALETTE+palette_offset*16, 32);
 
 	//dmaCopy((uint16*)keyboard_highlight_Palette, (uint16*)BG_PALETTE_SUB+16, 32);
 	dmaCopy((uint16*)typewriter_Tiles, char_base, 7776);
 
 	u8 msglength = getStringWidth(_msg);
 	
-	msglabel = new Label(x+4, y+4, msglength+4, 12, _vram, false);
-	msglabel->setCaption(_msg);
+	message = (char*)calloc(1, strlen(_msg)+1);
+	strcpy(message, _msg);
 	
-	label = new Label(x+msglength+8, y+4, TW_WIDTH-msglength-12, 13, _vram, true);
+	//msglabel = new Label(x+4, y+24, msglength+4, 12, _vram, false);
+	//msglabel->setCaption(_msg);
 	
-	buttonok = new Button(x+TW_WIDTH/2+2, y+TW_HEIGHT-12-4, 50, 12, _vram);
+	label = new Label(x+msglength+8, y+24, TW_WIDTH-msglength-22, 13, _vram, true);
+	
+	buttonok = new Button(x+TW_WIDTH/2+2, y+TW_HEIGHT-12-4, 50, 19, _vram);
 	buttonok->setCaption("ok");
-	gui.registerWidget(buttonok, 0, SUB_SCREEN);
+	gui.registerWidget(buttonok, 0, MAIN_SCREEN);
 	
-	buttoncancel = new Button(x+TW_WIDTH/2-50-2, y+TW_HEIGHT-12-4, 50, 12, _vram);
+	buttoncancel = new Button(x+TW_WIDTH/2-50-2, y+TW_HEIGHT-12-4, 50, 19, _vram);
 	buttoncancel->setCaption("cancel");
-	gui.registerWidget(buttoncancel, 0, SUB_SCREEN);
+	gui.registerWidget(buttoncancel, 0, MAIN_SCREEN);
 	
 	// Set the tile bg translation registers to move the typewriter to (x,y)
 	*_trans_reg_x = -kx;
@@ -70,10 +71,11 @@ Typewriter::Typewriter(const char *_msg, u16 *_char_base,
 Typewriter::~Typewriter(void)
 {
 	delete label;
-	delete msglabel;
+	//delete msglabel;
 	delete buttonok;
 	delete buttoncancel;
 	free(text);
+	free(message);
 	
 	for(u8 py=0; py<12; ++py) {
 		for(u8 px=0; px<26; ++px) {
@@ -213,7 +215,6 @@ char *Typewriter::getText(void) {
 void Typewriter::show(void)
 {
 	label->show();
-	msglabel->show();
 	buttonok->show();
 	buttoncancel->show();
 	
@@ -227,7 +228,6 @@ void Typewriter::show(void)
 void Typewriter::setTheme(Theme *theme_)
 {
 	label->setTheme(theme_);
-	msglabel->setTheme(theme_);
 	buttonok->setTheme(theme_);
 	buttoncancel->setTheme(theme_);
 	
@@ -238,8 +238,8 @@ void Typewriter::setTheme(Theme *theme_)
 
 void Typewriter::draw(void)
 {
-	drawFullBox(0, 0, TW_WIDTH, TW_HEIGHT, theme->col_light_bg);
-	drawBorder();
+	//drawFullBox(0, 0, TW_WIDTH, TW_HEIGHT, theme->col_light_bg);
+	//drawBorder();
 	gui.draw();
 	
 	redraw();
@@ -249,7 +249,8 @@ void Typewriter::draw(void)
 void Typewriter::redraw(void)
 {
 	label->pleaseDraw();
-	msglabel->pleaseDraw();
+	//msglabel->pleaseDraw();
+	drawString(message, 4, 26);
 	
 	drawCursor();
 	

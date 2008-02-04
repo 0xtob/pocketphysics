@@ -2,9 +2,14 @@
 #define _THING_H_
 
 #include <Box2D.h>
+#include <tinyxml.h>
 
 #define PIXELS_PER_UNIT	(float32(50))
 #define UNITS_PER_PIXEL	(float32(1)/PIXELS_PER_UNIT)
+
+#define DEFAULT_DENSITY		1.0f//5.0f
+#define DEFAULT_FRICTION	0.3f
+#define DEFAULT_RESTITUTION	0.2f
 
 class Thing
 {
@@ -14,6 +19,7 @@ class Thing
 		enum Shape { Circle, Polygon, Pin };
 		
 		Thing(Type _type, CreatedBy _createdby, Shape _shape);
+		Thing(TiXmlElement *thingelement);
 		virtual ~Thing() {};
 		Shape getShape(void);
 		Type getType(void);
@@ -27,7 +33,11 @@ class Thing
 		// Reset to original position/rotation
 		void reset(void);
 		
+		virtual TiXmlElement *toXML(void) = 0;
+		
 	protected:
+		void addGenericXMLAttributes(TiXmlElement *thingelement);
+		
 		Type type;
 		CreatedBy createdby;
 		Shape shape;
