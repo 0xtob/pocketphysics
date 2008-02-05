@@ -5,6 +5,7 @@
 
 #include "thing.h"
 #include "Pin.h"
+#include "PPDestructionListener.h"
 
 #define MAX_THINGS			50
 #define DEFAULT_GRAVITY		2.0f//8.0f //60.0f
@@ -27,14 +28,10 @@ class World
 		// Removes the object from the world, but you have to delete it yourself
 		void remove(Thing *thing);
 		
-		// Removes the object at (x,y) from the world, but you have to delete it yourself
-		// If no object is found, 0 is returned.
-		Thing *removeAt(int x, int y);
-		
 		// Gets the things at a certain position. things is a pointer to a buffer,
 		// is is the maimum nr of things to return. Returns the number of things
 		// found.
-		int getThingsAt(int x, int y, Thing **things, int n);
+		int getThingsAt(int x, int y, Thing **res_things, int n, bool include_pins);
 		
 		// Makes a thing physical, i.e. adds it to the simulation
 		bool makePhysical(Thing *thing);
@@ -65,6 +62,8 @@ class World
 		b2World *b2world;
 		
 		b2Body *bgbody; // Dummy body for attaching joints
+		
+		PPDestructionListener *destruction_listener;
 		
 		void initPhysics(void);
 		void makeJointDummy(void);

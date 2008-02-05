@@ -21,13 +21,13 @@
 #define COL_DYNAMIC	RGB15(0,0,31)
 #define COL_PIN		RGB15(0,31,0)
 #define SHAPE_ALPHA	20
-#define COL_SOLID_HL    RGB15(31,20,20)
-#define COL_DYNAMIC_HL  RGB15(20,20,31)
-#define COL_PIN_HL      RGB15(20,31,20)
+#define COL_SOLID_HL    RGB15(31,15,15)
+#define COL_DYNAMIC_HL  RGB15(15,15,31)
+#define COL_PIN_HL      RGB15(15,31,15)
 
 
 Canvas::Canvas(World *_world):
-	world(_world), drawing(false), pins_visible(true), pinthing1(0), pinthing2(0)
+	world(_world), drawing(false), pins_visible(true), pinthing1(0), pinthing2(0), deletething(0)
 {
 	crayon = ulLoadImageFilePNG((const char*)crayon_png, (int)crayon_png_size, UL_IN_VRAM, UL_PF_PAL3_A5);
 }
@@ -44,15 +44,21 @@ void Canvas::draw(void)
 		{
 			if(thing->getType() == Thing::Dynamic)
 			{
-				if( (thing == pinthing1) || (thing == pinthing2) )
+				if( (thing == pinthing1) || (thing == pinthing2) || (thing == deletething) )
 					col = COL_DYNAMIC_HL;
 				else
 					col = COL_DYNAMIC;
 			}
 			else if(thing->getType() == Thing::Solid)
-				col = COL_SOLID;
+				if(thing == deletething)
+					col = COL_SOLID_HL;
+				else
+					col = COL_SOLID;
 			else if(thing->getType() == Thing::NonSolid)
-				col = COL_PIN;
+				if(thing == deletething)
+					col = COL_PIN_HL;
+				else
+					col = COL_PIN;
 		}
 		
 		switch (thing->getShape())
@@ -130,7 +136,11 @@ void Canvas::draw(void)
 				int px, py;
 				Pin *pin = (Pin*)thing;
 				pin->getPosition(&px, &py);
-				u16 pincol = RGB15(0,31,0);
+				u16 pincol;
+				if(pin == deletething)
+					pincol = COL_PIN_HL;
+				else
+					pincol = COL_PIN;
 				drawLine(pincol, px-4, py-4, px+4, py+4);
 				drawLine(pincol, px-4, py+4, px+4, py-4);
 			}
@@ -225,7 +235,7 @@ void Canvas::penDown(int x, int y)
 		{			
 			// We need some object at this position
 			Thing *things[2] = {0, 0};
-			int count = world->getThingsAt(x, y, things, 2);
+			int count = world->getThingsAt(x, y, things, 2, false);
 			
 			if(count > 0)
 				pinthing1 = things[0];
@@ -263,6 +273,9 @@ void Canvas::penDown(int x, int y)
 		
 		case pmDelete:
 		{
+			drawing = true;
+			
+			/*
 			Thing *thing = world->removeAt(x, y);
 			if(thing != 0)
 			{
@@ -270,6 +283,7 @@ void Canvas::penDown(int x, int y)
 				extern Sample* smp_del;
 				CommandPlaySample(smp_del, 48, 255, 0);
 			}
+			*/
 		}
 		break;
 		
@@ -393,7 +407,7 @@ void Canvas::penMove(int x, int y)
 			pin->setPosition(x, y);
 			
 			Thing *things[2] = {0, 0};
-			int count = world->getThingsAt(x, y, things, 2);
+			int count = world->getThingsAt(x, y, things, 2, false);
 			
 			if(count > 0)
 				pinthing1 = things[0];
@@ -401,6 +415,21 @@ void Canvas::penMove(int x, int y)
 				pinthing2 = things[1];
 			else
 				pinthing2 = 0;
+		}
+		break;
+		
+		case pmDelete:
+		{
+			if(!drawing)
+				return;
+			
+			Thing *thing;
+			int count = world->getThingsAt(x, y, &thing, 1, true);
+			
+			if(count > 0)
+				deletething = thing;
+			else
+				deletething = 0;
 		}
 		break;
 		
@@ -570,7 +599,7 @@ void Canvas::penUp(int x, int y)
 					Pin *pin = (Pin*)currentthing;
 
 					Thing *things[2] = {0, 0};
-					int count = world->getThingsAt(x, y, things, 2);
+					int count = world->getThingsAt(x, y, things, 2, false);
 
 					if(count > 0)
 					{
@@ -594,6 +623,29 @@ void Canvas::penUp(int x, int y)
 					pinthing1 = pinthing2 = 0;
 					currentthing = 0;
 				}
+				drawing = false;
+			}
+			break;
+			
+			case pmDelete:
+			{
+				if(drawing)
+				{
+					Thing *thing;
+					int count = world->getThingsAt(x, y, &thing, 1, true);
+					
+					if(count > 0)
+					{
+						world->remove(thing);
+						
+						delete thing;
+						extern Sample* smp_del;
+						CommandPlaySample(smp_del, 48, 255, 0);
+						
+						deletething = 0;
+					}
+				}
+				deletething = 0;
 				drawing = false;
 			}
 			break;

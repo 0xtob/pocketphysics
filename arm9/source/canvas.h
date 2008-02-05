@@ -36,6 +36,7 @@ class Canvas
 		bool pins_visible;
 		Thing *pinthing1;
 		Thing *pinthing2;
+		Thing *deletething;
 		
 		UL_IMAGE *crayon;
 };

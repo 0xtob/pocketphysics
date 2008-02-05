@@ -118,18 +118,7 @@ void World::remove(Thing *thing)
 	}
 }
 
-Thing *World::removeAt(int x, int y)
-{
-	Thing *thing;
-	int count = getThingsAt(x, y, &thing, 1);
-	if(count == 0)
-		return 0;
-	
-	remove(thing);
-	return thing;
-}
-
-int World::getThingsAt(int x, int y, Thing ** things, int n)
+int World::getThingsAt(int x, int y, Thing ** res_things, int n, bool include_pins)
 {
 	b2AABB *touchAABB = new b2AABB();
 	touchAABB->minVertex.Set((float32)(x-2)/PIXELS_PER_UNIT, (float32)(y-2)/PIXELS_PER_UNIT);
@@ -139,8 +128,33 @@ int World::getThingsAt(int x, int y, Thing ** things, int n)
 	b2Shape *shape[16];
 	b2Body *body;
 	
-	int count = b2world->Query(*touchAABB, shape, 16);
 	int returncount = 0;
+	
+	if(include_pins)
+	{
+		// Check for pins
+		for(int i=0; (i<n_things)&&(returncount<n); ++i)
+		{
+			Thing *thing = things[i];
+			
+			if(thing->getShape() == Thing::Pin)
+			{
+				int px, py;
+				thing->getPosition(&px, &py);
+
+				// If the query position is in a 7x7 square around the pin center, the pin is hit
+				if((x>=px-3)&&(x<=px+3)&&(y>=py-3)&&(y<=py+3))
+				{
+					res_things[returncount] = thing;
+					returncount++;
+				}
+			}
+		}
+	}
+	
+	// Check for other objects
+	int count = b2world->Query(*touchAABB, shape, 16);
+	
 	for(int i=0;(i<count)&&(returncount<n);++i)
 	{
 		body = shape[i]->GetBody();
@@ -152,12 +166,12 @@ int World::getThingsAt(int x, int y, Thing ** things, int n)
 			// Do we already have this body? (Happens for multi-shape bodies)
 			bool alreadythere = false;
 			for(int b=0;b<returncount;++b)
-				if(things[b]->getb2Body() == body)
+				if(res_things[b]->getb2Body() == body)
 					alreadythere = true;
 			
 			if(!alreadythere)
 			{
-				things[returncount] = (Thing*)body->GetUserData();
+				res_things[returncount] = (Thing*)body->GetUserData();
 				returncount++;
 			}
 		}
@@ -365,6 +379,7 @@ void World::makeUnphysical(Thing *thing)
 		if(p->getb2Joint() == 0)
 			return;
 		
+		b2world->Destroy(p->getb2Joint());
 		//b2world->DestroyJoint(p->getb2Joint()); // Is removed automatically
 		p->setb2Joint(0);
 	}
@@ -642,6 +657,9 @@ void World::initPhysics(void)
 	
 	b2world = new b2World(*worldAABB, grav, doSleep);
 
+	destruction_listener = new PPDestructionListener();
+	b2world->SetListener(destruction_listener);
+	
 	delete worldAABB;
 }
 
