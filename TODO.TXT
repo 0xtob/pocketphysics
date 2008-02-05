@@ -1,5 +1,3 @@
-- test file stuff from scratch
-- test files stuff on r4
 - see forum
 
 bugs:

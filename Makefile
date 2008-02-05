@@ -36,6 +36,11 @@ cp: all
 	cp $(TARGET).nds /media/GBAMP
 	pumount /media/GBAMP
 
+r4: all
+	dlditool ~/coding/dsdev/tools/dldi/r4tf.dldi $(TARGET).nds
+	cp $(TARGET).nds /media/R4
+	pumount /media/R4
+
 wmb: all
 	sudo $(WMB) $(TARGET).nds $(WLANIF)
 

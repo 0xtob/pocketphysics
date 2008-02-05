@@ -502,6 +502,7 @@ char *b64screenshot(void)
 	
 	// Wait until a full frame (top and bootom screens) was drawn and
 	// capturing is finished
+	while(!ulGetMainLcd());
 	while(ulGetMainLcd());
 	while(!ulGetMainLcd());
 	while(ulGetMainLcd());
@@ -666,7 +667,7 @@ void handleLoadDialogOk(void)
 
 void showLoadDialog(void)
 {
-	printf("Load Dialog\n");
+	CommandPlaySample(smp_play, 48, 255, 0);
 	
 	load_dialog = new PPLoadDialog(&main_vram);
 	dialog_active = true;
@@ -681,7 +682,8 @@ void showLoadDialog(void)
 
 void showSaveDialog(void)
 {
-	printf("Save\n");
+	CommandPlaySample(smp_play, 48, 255, 0);
+	
 	showTypewriter("save as", current_filename, handleSaveDialogOk, deleteTypewriter);
 }
 

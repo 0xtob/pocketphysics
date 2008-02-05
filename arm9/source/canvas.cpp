@@ -640,7 +640,7 @@ void Canvas::penUp(int x, int y)
 						
 						delete thing;
 						extern Sample* smp_del;
-						CommandPlaySample(smp_del, 48, 255, 0);
+						CommandPlaySample(smp_del, 48, 255, 1);
 						
 						deletething = 0;
 					}

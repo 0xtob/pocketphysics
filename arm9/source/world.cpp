@@ -240,10 +240,10 @@ bool World::makePhysical(Thing *thing)
 					  
 					b2Polygon *pgon = new b2Polygon(points_x, points_y, n_points);
 					
-					b2Polygon *tracedPgon = TraceEdge(pgon);
-					//b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
-					b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, tracedPgon, bodyDef, polyDef);
-					delete tracedPgon;
+					//b2Polygon *tracedPgon = TraceEdge(pgon);
+					b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
+					//b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, tracedPgon, bodyDef, polyDef);
+					//delete tracedPgon;
 					
 					b2Body* body = 0;
 					if(deleteMe)
