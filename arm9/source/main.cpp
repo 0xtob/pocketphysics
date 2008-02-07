@@ -46,7 +46,7 @@
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-#define DEBUG
+//#define DEBUG
 #define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
@@ -662,6 +662,7 @@ void handleLoadDialogOk(void)
 {
 	printf("Loading %s\n", load_dialog->getFilename());
 	world->load(load_dialog->getFilename());
+	strcpy(current_filename, load_dialog->getFilename());
 	deleteLoadDialog();
 }
 
@@ -1085,6 +1086,16 @@ int main()
 	u32 colcol = col | col << 16;
 	swiFastCopy(&colcol, sub_vram, 192*256/2 | COPY_MODE_FILL);
 	
+	printf("Initializing FAT\n");
+	
+	fat_ok = fatInitDefault();
+#ifdef DEBUG
+	if(fat_ok)
+		printf("OK\n");
+	else
+		printf("Fail!\n");
+#endif
+	
 	drawMainBg();
 	setupGui();
 	
@@ -1101,8 +1112,6 @@ int main()
 	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
 	
 	current_filename = (char*)calloc(1, 256);
-	
-	fat_ok = fatInitDefault();
 	
 	if(motion_init() != 0)
 	{

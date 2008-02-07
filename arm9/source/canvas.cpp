@@ -620,6 +620,11 @@ void Canvas::penUp(int x, int y)
 						else if(count == 2)
 							world->pin(pin, things[0], things[1]); // Pins the objects to each other
 					}
+					else
+					{
+						world->remove(pin);
+						delete pin;
+					}
 					pinthing1 = pinthing2 = 0;
 					currentthing = 0;
 				}

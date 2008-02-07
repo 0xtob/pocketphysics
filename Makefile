@@ -74,3 +74,9 @@ clean:
 
 emu: all
 	~/bin/nocash.sh $(TARGET).nds
+
+fcsr: all
+	~/coding/dsdev/tools/fcsr/build.sh pp.img worlds
+	padbin 512 $(TARGET).ds.gba
+	cat $(TARGET).ds.gba pp.img > $(TARGET)_fcsr.ds.gba
+	dlditool ~/coding/dsdev/tools/dldi/fcsr.dldi $(TARGET)_fcsr.ds.gba
