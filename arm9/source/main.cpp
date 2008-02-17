@@ -91,6 +91,7 @@ bool framesdone[60];
 bool framedone = false;
 int accumulated_timesteps = 0;
 int passed_frames = 0;
+int passed_physics_ticks = 0;
 
 bool main_screen_active = false;
 
@@ -223,7 +224,7 @@ void draw()
 		ulSetAlpha(UL_FX_ALPHA, 31, 1);
 		
 		if(!dont_draw)
-		canvas->draw();
+			canvas->draw();
 		
 		glLoadIdentity();
 		if(!dialog_active)
@@ -1144,45 +1145,19 @@ int main()
 	
 	init = false;
 	
-	int brake = 0;
-	
 	while(1)
 	{
 		if(state.simulating)
 		{
-			//int do_steps = min(2, accumulated_timesteps) / 2;
 			if(accumulated_timesteps < 1)
 				swiWaitForVBlank();
-
-			printf("%d ", accumulated_timesteps);
-			
-			int do_steps = 2;//min(2, accumulated_timesteps);
-			
-			// If there was a slowdown, artificially limit the speed to avoid
-			// a bullet time effect.
-			
-			if(accumulated_timesteps>1)
-			{
-				brake = 60;
-			}
-			else if (accumulated_timesteps==1)
-			{
-				if(brake > 0)
-				{
-					printf("b ");
-					//swiWaitForVBlank();
-					brake--;
-				}
-			}
 			
 			accumulated_timesteps = 0;
 			
-			for(int i=0; i<do_steps; ++i)
-			{
-				if(dsmotion)
-					updateGravity();
-				world->step(float32(1.0f / 40.0f));
-			}
+			if(dsmotion)
+				updateGravity();
+			
+			world->step();
 		}
 		
 		handleInput();
