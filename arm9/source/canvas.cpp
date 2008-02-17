@@ -10,7 +10,6 @@
 #include "Pin.h"
 
 #include "crayon_png.h"
-#include "light_png.h"
 
 #define MAX_POINTS              64
 #define DRAW_MIN_POINT_DIST     7 //15
@@ -244,30 +243,15 @@ void Canvas::penDown(int x, int y)
 			else
 				pinthing2 = 0;
 			
-			if(count > 0)
-			{
-				drawing = true;
-				
-				if(things[0]->getb2Body() == 0)
-				{
-					printf("weird: thing does not have a body\n");
-					return;
-				}
-				if(   (things[0]->getType() != Thing::Dynamic)
-					&&( (count < 2) || (things[1]->getType() != Thing::Dynamic) ) )
-				{
-					printf("Not pinning static objects\n");
-					return;
-				}
-				Pin *pin = new Pin(x, y);
-				
-				if(world->add(pin))
-					currentthing = pin;
-				else
-					drawing = false;
-			}
+			drawing = true;
+			
+			Pin *pin = new Pin(x, y);
+			
+			if(world->add(pin))
+				currentthing = pin;
 			else
-				printf("nothing picked!\n");
+				drawing = false;
+			
 			break;
 		}
 		
@@ -601,30 +585,37 @@ void Canvas::penUp(int x, int y)
 					Thing *things[2] = {0, 0};
 					int count = world->getThingsAt(x, y, things, 2, false);
 
-					if(count > 0)
+					bool pinned = false;
+					if(count == 0)
 					{
-						if(things[0]->getb2Body() == 0)
-						{
-							printf("weird: thing does not have a body\n");
-							return;
-						}
-						if(   (things[0]->getType() != Thing::Dynamic)
-								&&( (count < 2) || (things[1]->getType() != Thing::Dynamic) ) )
-						{
-							printf("Not pinning static objects\n");
-							return;
-						}
-
-						if(count == 1)
-							world->pin(pin, things[0]); // Pins the object to the background
-						else if(count == 2)
-							world->pin(pin, things[0], things[1]); // Pins the objects to each other
+						printf("Nothing to pin\n");
 					}
-					else
+					else if(things[0]->getb2Body() == 0)
+					{
+						printf("weird: thing does not have a body\n");
+					}
+					else if(   (things[0]->getType() != Thing::Dynamic)
+							&&( (count < 2) || (things[1]->getType() != Thing::Dynamic) ) )
+					{
+						printf("Not pinning static objects\n");
+					}
+					else if(count == 1)
+					{
+						world->pin(pin, things[0]); // Pins the object to the background
+						pinned = true;
+					}
+					else if(count == 2)
+					{
+						world->pin(pin, things[0], things[1]); // Pins the objects to each other
+						pinned = true;
+					}
+					
+					if(!pinned)
 					{
 						world->remove(pin);
 						delete pin;
 					}
+					
 					pinthing1 = pinthing2 = 0;
 					currentthing = 0;
 				}

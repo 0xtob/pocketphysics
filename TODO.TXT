@@ -1,3 +1,6 @@
+- bomb bug
+- long line -> crash
+- pin red objects -> crash
 - see forum
 
 bugs:

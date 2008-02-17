@@ -10,7 +10,7 @@
 #define MAX_THINGS			50
 #define DEFAULT_GRAVITY		2.0f//8.0f //60.0f
 
-#define TIMESTEP			(float32(1.0f / 30.0f))
+#define TIMESTEP			(float32(1.0f / 20.0f))
 #define ITERATIONS			3//6
 
 class World
@@ -18,6 +18,9 @@ class World
 	public:
 		World(int _width, int _height);
 		~World();
+		
+		// Allow objects to sleep, ie not simulate inactive objects to save cpu power
+		void allow_sleep(bool sleep);
 		
 		// Adds a thing , but doesn't make it physical yet
 		bool add(Thing *thing);

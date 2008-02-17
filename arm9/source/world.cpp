@@ -23,6 +23,11 @@ World::~World()
 	
 }
 
+void World::allow_sleep(bool sleep)
+{
+	b2world->m_allowSleep = sleep;
+}
+
 bool World::add(Thing *thing)
 {
 	if(n_things == MAX_THINGS)
@@ -203,6 +208,32 @@ bool World::makePhysical(Thing *thing)
 			{
 				Polygon *polygon = (Polygon*)thing;
 				
+				// Eliminate vertices that are too close
+				int cur_x, cur_y, lastx = -1, lasty = -1;
+				int i=0;
+				while(i<polygon->getNVertices())
+				{
+					polygon->getVertex(i, &cur_x, &cur_y, true);
+					
+					if(i>0)
+					{
+						int dx = cur_x - lastx;
+						int dy = cur_y - lasty;
+						int len = mysqrt(dx*dx + dy*dy);
+						if( len < 2 )
+						{
+							polygon->removeVertex(i);
+							printf("removing vtx\n");
+							i--; // Don't advance, because the vertex with the next index now has the current index
+						}
+					}
+					
+					lastx = cur_x;
+					lasty = cur_y;
+					
+					i++;
+				}
+				
 				b2BodyDef *bodyDef = new b2BodyDef();
 				bodyDef->userData = thing; // So you can always get the thing pointer from a b2body
 				
@@ -214,6 +245,8 @@ bool World::makePhysical(Thing *thing)
 				// Closed polygon: Convert to a set of convex polygons and add them to the body
 				if(polygon->getClosed() == true)
 				{
+					printf("making closed poly\n");
+					
 					b2PolygonDef *polyDef = new b2PolygonDef();
 					
 					int n_points = polygon->getNVertices();
@@ -282,6 +315,8 @@ bool World::makePhysical(Thing *thing)
 				// Get a polygon segment, calculate the normal, multiply it by 4, add that to the vertices,
 				// add the resulting vertices to the polygon.
 				{
+					printf("making open poly\n");
+					
 					for(int i=0; i<polygon->getNVertices()-1; ++i)
 					{
 						b2PolygonDef *polyDef = new b2PolygonDef();
@@ -302,8 +337,10 @@ bool World::makePhysical(Thing *thing)
 						int odx = y1 - y2;
 						int ody = x2 - x1;
 						int len = mysqrt(odx*odx + ody*ody);
+						//printf("%d ", len);
 						odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
 						ody = (4 * (ody<<8) / len)>>8;
+						printf("%d: %d - %d %d (%d %d, %d %d)\n", i, len, odx, ody, x1, y1, x2, y2);
 						
 						polyDef->vertexCount = 4;
 						polyDef->vertices[0].Set(float32(x1)/PIXELS_PER_UNIT, float32(y1)/PIXELS_PER_UNIT);
@@ -431,6 +468,29 @@ void World::step(float32 timestep)
 {
 	// TODO: Delete objects that move out of the screen
 	b2world->Step(timestep, ITERATIONS);
+	
+	// wrapping test code
+	/*
+	for(int i=0;i<n_things;++i)
+	{
+		int px, py;
+		bool changed = false;
+		things[i]->getPosition(&px, &py);
+		if(py > height)
+		{
+			py -= height;
+			changed = true;
+		}
+		if(px > width)
+		{
+			px -= width;
+			changed = true;
+		}
+		if(changed)
+			things[i]->setPosition(px, py);
+	}
+	*/
+	//
 }
 
 void World::reset(void)
@@ -651,7 +711,7 @@ void World::initPhysics(void)
 	b2Vec2 grav(gravity_x, gravity_y);
 
 	// Do we want to let bodies sleep?
-	bool doSleep = false;
+	bool doSleep = true;
 
 	// Construct a world object, which will hold and simulate the rigid bodies.
 	

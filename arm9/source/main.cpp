@@ -46,7 +46,7 @@
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-//#define DEBUG
+#define DEBUG
 #define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
@@ -59,9 +59,9 @@
 #define	SCROLL_VMAX		8
 
 #define KEYS_SCROLL_RIGHT	(KEY_RIGHT | KEY_A)
-#define KEYS_SCROLL_LEFT		(KEY_LEFT | KEY_Y)
+#define KEYS_SCROLL_LEFT	(KEY_LEFT | KEY_Y)
 #define KEYS_SCROLL_UP		(KEY_UP | KEY_X)
-#define KEYS_SCROLL_DOWN		(KEY_DOWN | KEY_B)
+#define KEYS_SCROLL_DOWN	(KEY_DOWN | KEY_B)
 
 int scroll_x=0;
 int scroll_y=0;
@@ -103,8 +103,6 @@ bool fat_ok = false;
 char *current_filename = 0;
 
 UL_IMAGE *imgbg;
-
-float32 timeStep = float32(1) / float32(20);
 
 u16 *main_vram = (u16*)BG_BMP_RAM(2);
 u16 *sub_vram = (u16*)BG_BMP_RAM_SUB(2);
@@ -882,13 +880,15 @@ void handleInput(void)
 		if(motion_init() != 0)
 		{
 			dsmotion = true;
-		  
+			world->allow_sleep(false);
+			
 			request_calibration();
 		}
 		else
 		{
 			dsmotion = false;
-		
+			world->allow_sleep(true);
+			
 			iprintf("Get a DSMotion. They are fun!\n");
 		}
 	}
@@ -1117,12 +1117,14 @@ int main()
 	{
 		dsmotion = true;
 	  
+		world->allow_sleep(false);
 		request_calibration();
 	}
 	else
 	{
 		dsmotion = false;
-	
+		world->allow_sleep(true);
+		
 		iprintf("Get a DSMotion. They are fun!\n");
 	}
 	
@@ -1142,28 +1144,49 @@ int main()
 	
 	init = false;
 	
+	int brake = 0;
+	
 	while(1)
 	{
 		if(state.simulating)
 		{
-			for(int i=0; i<min(2, accumulated_timesteps); ++i)
+			//int do_steps = min(2, accumulated_timesteps) / 2;
+			if(accumulated_timesteps < 1)
+				swiWaitForVBlank();
+
+			printf("%d ", accumulated_timesteps);
+			
+			int do_steps = 2;//min(2, accumulated_timesteps);
+			
+			// If there was a slowdown, artificially limit the speed to avoid
+			// a bullet time effect.
+			
+			if(accumulated_timesteps>1)
+			{
+				brake = 60;
+			}
+			else if (accumulated_timesteps==1)
+			{
+				if(brake > 0)
+				{
+					printf("b ");
+					//swiWaitForVBlank();
+					brake--;
+				}
+			}
+			
+			accumulated_timesteps = 0;
+			
+			for(int i=0; i<do_steps; ++i)
 			{
 				if(dsmotion)
 					updateGravity();
-				world->step(timeStep);
+				world->step(float32(1.0f / 40.0f));
 			}
 		}
-		accumulated_timesteps = 0;
 		
 		handleInput();
-		
 		CommandProcessCommands();
-		
-#ifdef DUALSCREEN
-		swiWaitForVBlank();
-#else
-		ulSyncFrame();
-#endif
 	}
 
 	//Program end - should never get there
