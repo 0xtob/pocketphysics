@@ -48,7 +48,7 @@ void Thing::setPosition(int _x, int _y)
 		if(b2body->IsFrozen())
 			printf("cannot set position: body is frozen\n");
 		
-		b2body->SetOriginPosition(origin, float32(rotation));
+		b2body->SetOriginPosition(origin, getRotation());
 	}
 }
 

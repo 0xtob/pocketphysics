@@ -1,7 +1,8 @@
-- add version info to pp file format
 - bomb bug
 - long line -> crash
 - see forum
+
+REMINDER: change version!
 
 bugs:
 objekte die aus dem bild fallen werden nicht disabled

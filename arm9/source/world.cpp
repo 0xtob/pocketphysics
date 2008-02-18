@@ -11,7 +11,7 @@
 #include <tinyxml.h>
 
 World::World(int _width, int _height):
-	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY)
+	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY), mouse_joint(0)
 {
 	initPhysics();
 	
@@ -87,6 +87,47 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 	{
 		printf("Pin not attached to body!\n"); //<- warum kann das passieren?
 	}
+}
+
+// Attaches a mouse joint to a thing for dragging it around
+void World::grab(Thing *thing, int x, int y)
+{
+	if(thing->getShape() == Thing::Pin)
+		return;
+	
+	b2Body *body = thing->getb2Body();
+	
+	if(!body)
+		return;
+	
+	b2MouseJointDef md;
+	md.body1 = bgbody;
+	md.body2 = body;
+	b2Vec2 p((float32)x/PIXELS_PER_UNIT, (float32)y/PIXELS_PER_UNIT);
+	md.target = p;
+	md.maxForce = (float32)1000 * body->m_mass;
+	mouse_joint = (b2MouseJoint*)b2world->Create(&md);
+	body->WakeUp();
+}
+
+// Drags the grabbed thing around
+void World::drag(int x, int y)
+{	
+	if(mouse_joint)
+    {
+		b2Vec2 p((float32)x/PIXELS_PER_UNIT, (float32)y/PIXELS_PER_UNIT);
+		mouse_joint->SetTarget(p);
+    }
+}
+
+// Lets go off the grabbed thing
+void World::letGo(void)
+{
+	if(mouse_joint)
+    {
+		b2world->Destroy(mouse_joint);
+		mouse_joint = NULL;
+    }
 }
 
 void World::remove(Thing *thing)
@@ -182,6 +223,73 @@ int World::getThingsAt(int x, int y, Thing ** res_things, int n, bool include_pi
 		}
 	}
 	return returncount;
+}
+
+Thing **World::getConnectedThings(Thing *thing, int *n)
+{
+	Thing **res = (Thing**)malloc(sizeof(Thing*) * MAX_THINGS);
+	(*n) = 0;
+	
+	res[0] = thing;
+	(*n)++;
+	
+	// For each queue item, add everything that's connected to it
+	int queue_next = 0;
+	while(queue_next < (*n))
+	{
+		Thing *t = res[queue_next];
+		if(t->getShape() == Thing::Pin)
+		{
+			// If it's a pin, add all connected objects
+			Pin *p = (Pin*)t;
+			Thing *pinthings[2] = {p->getThing(1), p->getThing(2)};
+			
+			// Check if they aren't already in the list (which happens in case of a cycle)
+			for(int pt=0; pt<2; ++pt)
+			{
+				bool found = false;
+				for(int q=0; q < (*n); ++q)
+				{
+					if(res[q] == pinthings[pt])
+						found = true;
+				}
+				if((!found)&&(pinthings[pt]!=0))
+				{
+					res[*n] = pinthings[pt];
+					(*n)++;
+				}
+			}
+		}
+		else
+		{
+			// If it's not a pin, add all pins connected to it
+			for(int i=0; i<n_things; ++i)
+			{
+				if(things[i]->getShape() == Thing::Pin)
+				{
+					Pin *p = (Pin*)things[i];
+					if( (p->getThing(1) == t) || (p->getThing(2) == t) ) 
+					{
+						// Check if the pin is already in the list
+						bool found = false;
+						for(int q=0; q < (*n); ++q)
+						{
+							if(res[q] == p)
+								found = true;
+						}
+						if(!found)
+						{
+							res[*n] = p;
+							(*n)++;
+						}
+					}
+				}
+			}
+		}
+		queue_next++;
+	}
+	
+	return res;
 }
 
 bool World::makePhysical(Thing *thing)
@@ -513,19 +621,30 @@ void World::reset(void)
 
 void World::save(char *filename, char *thumbnail)
 {
-	if(!diropen("pocketphysics"))
+	// Since 0.5, data is stored in data/pocketphysics/sketches instead of pocketphysics/sketches
+	// backwards compatibility for the old path is still provided
+	bool use_data_dir = true;
+	if(diropen("pocketphysics/sketches"))
+		use_data_dir = false;
+	else
 	{
-		printf("making directory\n");
-		mkdir("pocketphysics", 777);
-	}
-	if(!diropen("pocketphysics"))
-	{
-		printf("diropen failed!\n");
-		return;
-	}
-	if(!diropen("pocketphysics/sketches"))
-	{
-		mkdir("pocketphysics/sketches", 777);
+		if(!diropen("data"))
+		{
+			mkdir("data", 777);
+		}
+		if(!diropen("data/pocketphysics"))
+		{
+			mkdir("data/pocketphysics", 777);
+		}
+		if(!diropen("data/pocketphysics/sketches"))
+		{
+			mkdir("data/pocketphysics/sketches", 777);
+		}
+		if(!diropen("data/pocketphysics/sketches"))
+		{
+			printf("diropen failed!\n");
+			return;
+		}
 	}
 	
 	// Header
@@ -537,6 +656,11 @@ void World::save(char *filename, char *thumbnail)
 	// World
 	
 	Thing **idtable = (Thing**)malloc(sizeof(Thing*) * (n_things+1));
+	
+	TiXmlElement *versionelement = new TiXmlElement( "creator" );
+	TiXmlText *versiontext = new TiXmlText( "Pocket Physics 0.5" );
+	versionelement->LinkEndChild(versiontext);	
+	doc.LinkEndChild(versionelement);
 	
 	TiXmlElement *worldelement = new TiXmlElement( "world" );
 	worldelement->SetDoubleAttribute("gravity_x", DEFAULT_GRAVITY);
@@ -595,13 +719,22 @@ void World::save(char *filename, char *thumbnail)
 	// Save
 	
 	char *f = (char*)calloc(1, 255);
-	sprintf(f, "%s/%s", "pocketphysics/sketches", filename);
+	if(use_data_dir)
+		sprintf(f, "%s/%s", "data/pocketphysics/sketches", filename);
+	else
+		sprintf(f, "%s/%s", "pocketphysics/sketches", filename);
 	doc.SaveFile(f);
 	free(f);
 }
 
 bool World::load(char *filename)
 {
+	char *datadir = "";
+	if(diropen("data/pocketphysics/sketches"))
+		datadir = "data/pocketphysics/sketches";
+	else if(diropen("pocketphysics/sketches"))
+		datadir = "pocketphysics/sketches";
+	
 	// Clear
 	while(n_things > 0)
 	{
@@ -612,7 +745,7 @@ bool World::load(char *filename)
 	
 	// Load
 	char *f = (char*)calloc(1, 255);
-	sprintf(f, "%s/%s", "pocketphysics/sketches", filename);
+	sprintf(f, "%s/%s", datadir, filename);
 	TiXmlDocument doc(f);
 	free(f);
 	

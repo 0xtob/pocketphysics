@@ -43,6 +43,7 @@ class PPLoadDialog : public Widget
 		u16 **thumbnails;
 		char **names;
 		char *resultname;
+		char *datadir;
 };
 
 #endif /*LOADDIALOG_H_*/

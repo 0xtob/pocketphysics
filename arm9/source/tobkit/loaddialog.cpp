@@ -31,6 +31,12 @@ PPLoadDialog::PPLoadDialog(uint16 **_vram):
 	thumbnails = (u16**)calloc(1, sizeof(u16*)*6);
 	names = (char**)calloc(1, sizeof(char*)*6);
 	
+	datadir = "";
+	if(diropen("data/pocketphysics/sketches"))
+		datadir = "data/pocketphysics/sketches";
+	else if(diropen("pocketphysics/sketches"))
+		datadir = "pocketphysics/sketches";
+	
 	loadThumbnails();
 }
 
@@ -191,7 +197,7 @@ void PPLoadDialog::loadThumbnail(char *filename, int idx)
 {
 	// Load
 	char *f = (char*)calloc(1, 255);
-	sprintf(f, "%s/%s", "pocketphysics/sketches", filename);
+	sprintf(f, "%s/%s", datadir, filename);
 	TiXmlDocument doc(f);
 	free(f);
 	
@@ -217,7 +223,7 @@ void PPLoadDialog::loadThumbnails(void)
 	DIR_ITER *dir;
 	struct stat filestats;
 	
-	if(((dir = diropen("pocketphysics/sketches")) == NULL))
+	if(((dir = diropen(datadir)) == NULL))
 	{
 		iprintf("Dir read error!\n");
 		return;

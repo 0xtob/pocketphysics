@@ -26,7 +26,7 @@
 
 
 Canvas::Canvas(World *_world):
-	world(_world), drawing(false), pins_visible(true), pinthing1(0), pinthing2(0), deletething(0)
+	world(_world), drawing(false), pinthing1(0), pinthing2(0), highlightthing(0), simulation_mode(false)
 {
 	crayon = ulLoadImageFilePNG((const char*)crayon_png, (int)crayon_png_size, UL_IN_VRAM, UL_PF_PAL3_A5);
 }
@@ -43,18 +43,18 @@ void Canvas::draw(void)
 		{
 			if(thing->getType() == Thing::Dynamic)
 			{
-				if( (thing == pinthing1) || (thing == pinthing2) || (thing == deletething) )
+				if( (thing == pinthing1) || (thing == pinthing2) || (thing == highlightthing) )
 					col = COL_DYNAMIC_HL;
 				else
 					col = COL_DYNAMIC;
 			}
 			else if(thing->getType() == Thing::Solid)
-				if(thing == deletething)
+				if(thing == highlightthing)
 					col = COL_SOLID_HL;
 				else
 					col = COL_SOLID;
 			else if(thing->getType() == Thing::NonSolid)
-				if(thing == deletething)
+				if(thing == highlightthing)
 					col = COL_PIN_HL;
 				else
 					col = COL_PIN;
@@ -130,13 +130,13 @@ void Canvas::draw(void)
 			
 			case Thing::Pin:
 			{
-				if(!pins_visible)
+				if(simulation_mode)
 					break;
 				int px, py;
 				Pin *pin = (Pin*)thing;
 				pin->getPosition(&px, &py);
 				u16 pincol;
-				if(pin == deletething)
+				if(pin == highlightthing)
 					pincol = COL_PIN_HL;
 				else
 					pincol = COL_PIN;
@@ -251,9 +251,40 @@ void Canvas::penDown(int x, int y)
 				currentthing = pin;
 			else
 				drawing = false;
-			
-			break;
 		}
+		break;
+		
+		case pmMove:
+		{
+			Thing *thing = 0;
+			int count = world->getThingsAt(x, y, &thing, 1, false);
+			
+			if(count > 0)
+			{
+				highlightthing = thing;
+
+				if(simulation_mode)
+					world->grab(thing, x, y);
+				else
+				{
+					move_startx = x;
+					move_starty = y;
+					
+					// Outside simulation mode, if an object is moved,
+					// we have to check if it is pinned to other
+					// objects and, if so, move them as well.
+					move_connected_things = world->getConnectedThings(thing, &move_n_connected_things);
+					
+					for(int i=0; i<move_n_connected_things; ++i)
+					{
+						move_connected_things[i]->getPosition(&(move_things_x[i]), &(move_things_y[i]));
+					}
+				}
+				
+				drawing = true;
+			}
+		}
+		break;
 		
 		case pmDelete:
 		{
@@ -402,6 +433,29 @@ void Canvas::penMove(int x, int y)
 		}
 		break;
 		
+		case pmMove:
+		{
+			if(!drawing)
+				return;
+			
+			// If simulation is not running we can just set the position. If it is running, we apply a force in
+			// the direction of the pen instead
+			if(!simulation_mode)
+			{
+				int dx = x - move_startx;
+				int dy = y - move_starty;
+				for(int i=0; i<move_n_connected_things; ++i)
+				{
+					move_connected_things[i]->setPosition(move_things_x[i] + dx, move_things_y[i] + dy);
+				}
+			}
+			else
+			{
+				world->drag(x,y);
+			}
+		}
+		break;
+		
 		case pmDelete:
 		{
 			if(!drawing)
@@ -411,9 +465,9 @@ void Canvas::penMove(int x, int y)
 			int count = world->getThingsAt(x, y, &thing, 1, true);
 			
 			if(count > 0)
-				deletething = thing;
+				highlightthing = thing;
 			else
-				deletething = 0;
+				highlightthing = 0;
 		}
 		break;
 		
@@ -623,6 +677,30 @@ void Canvas::penUp(int x, int y)
 			}
 			break;
 			
+			case pmMove:
+			{
+				if(drawing)
+				{
+					if(simulation_mode)
+						world->letGo();
+					else
+					{
+						for(int i=0; i<move_n_connected_things; ++i)
+						{
+							if(move_connected_things[i]->getShape()==Thing::Pin)
+							{
+								world->makeUnphysical(move_connected_things[i]);
+								world->makePhysical(move_connected_things[i]);
+							}
+						}
+						free(move_connected_things);
+					}
+					highlightthing = 0;
+				}
+				drawing = false;
+			}
+			break;
+			
 			case pmDelete:
 			{
 				if(drawing)
@@ -638,10 +716,10 @@ void Canvas::penUp(int x, int y)
 						extern Sample* smp_del;
 						CommandPlaySample(smp_del, 48, 255, 1);
 						
-						deletething = 0;
+						highlightthing = 0;
 					}
 				}
-				deletething = 0;
+				highlightthing = 0;
 				drawing = false;
 			}
 			break;
@@ -657,16 +735,6 @@ void Canvas::drawScreenRect(int sx, int sy)
 	drawLine(RGB15(0,0,0), sx-5,   sy+176, sx+237, sy+176);
 	drawLine(RGB15(0,0,0), sx-5,   sy,     sx-5,   sy+181);
 	drawLine(RGB15(0,0,0), sx+237, sy,     sx+237, sy+181);
-}
-
-void Canvas::hidePins(void)
-{
-	pins_visible = false;
-}
-
-void Canvas::showPins(void)
-{
-	pins_visible = true;
 }
 
 void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
@@ -722,4 +790,14 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 				x2+od1x, y2+od1y,
 				x2-od2x, y2-od2y,
 				x1-od2x, y1-od2y);
+}
+
+void Canvas::startSimulationMode(void)
+{
+	simulation_mode = true;
+}
+
+void Canvas::stopSimulationMode(void)
+{
+	simulation_mode = false;
 }

@@ -31,6 +31,7 @@
 #include "icon_circle_raw.h"
 #include "icon_pin_raw.h"
 #include "icon_delete_raw.h"
+#include "icon_move_raw.h"
 #include "icon_zap_raw.h"
 #include "icon_save_raw.h"
 #include "icon_load_raw.h"
@@ -133,7 +134,7 @@ PPLoadDialog *load_dialog;
 // </Side Bar>
 
 // <Bottom Bar>
-	ToggleBitButton *tbbbox, *tbbpolygon, *tbbcircle, *tbbpin, *tbbdelete;
+	ToggleBitButton *tbbbox, *tbbpolygon, *tbbcircle, *tbbpin, *tbbdelete, *tbbmove;
 	ToggleBitButton::ToggleBitButtonGroup *tbbgobjects;
 	BitButton *buttonzap;
 // </Bottom Bar>
@@ -400,8 +401,12 @@ void penModeChanged(s8 item)
 		case 3:
 			canvas->setPenMode(Canvas::pmPin);
 			break;
-			
+		
 		case 4:
+				canvas->setPenMode(Canvas::pmMove);
+				break;
+		
+		case 5:
 			canvas->setPenMode(Canvas::pmDelete);
 			break;
 			
@@ -416,7 +421,7 @@ void startPlay(void)
 	state.simulating = true;
 	btnplay->hide();
 	btnpause->show();
-	canvas->hidePins();
+	canvas->startSimulationMode();
 }
 
 void pausePlay(void)
@@ -425,7 +430,7 @@ void pausePlay(void)
 	state.simulating = false;
 	btnpause->hide();
 	btnplay->show();
-	canvas->showPins();
+	canvas->stopSimulationMode();
 }
 
 void stopPlay(void)
@@ -436,7 +441,7 @@ void stopPlay(void)
 	world->reset();
 	btnpause->hide();
 	btnplay->show();
-	canvas->showPins();
+	canvas->stopSimulationMode();
 	dont_draw = false;
 }
 
@@ -743,7 +748,9 @@ void setupGui(void)
 		tbbcircle = new ToggleBitButton(47, 172, 22, 19, &main_vram, icon_circle_raw, 18, 15, 2, 2, tbbgobjects);
 		tbbpin = new ToggleBitButton(70, 172, 22, 19, &main_vram, icon_pin_raw, 18, 15, 2, 2, tbbgobjects);
 		
+		tbbmove = new ToggleBitButton(152, 172, 22, 19, &main_vram, icon_move_raw, 18, 15, 2, 2, tbbgobjects);
 		tbbdelete = new ToggleBitButton(175, 172, 22, 19, &main_vram, icon_delete_raw, 18, 15, 2, 2, tbbgobjects);
+		
 		
 		tbbgobjects->registerChangeCallback(penModeChanged);
 		
@@ -754,6 +761,7 @@ void setupGui(void)
 		gui->registerWidget(tbbbox, 0, MAIN_SCREEN);
 		gui->registerWidget(tbbcircle, 0, MAIN_SCREEN);
 		gui->registerWidget(tbbpin, 0, MAIN_SCREEN);
+		gui->registerWidget(tbbmove, 0, MAIN_SCREEN);
 		gui->registerWidget(tbbdelete, 0, MAIN_SCREEN);
 		gui->registerWidget(buttonzap, 0, MAIN_SCREEN);
 	// </Bottom Bar>

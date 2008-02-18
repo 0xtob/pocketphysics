@@ -23,7 +23,7 @@ class Thing
 		virtual ~Thing() {};
 		Shape getShape(void);
 		Type getType(void);
-		void setPosition(int _x, int _y);
+		virtual void setPosition(int _x, int _y);
 		virtual void getPosition(int *_x, int*_y);
 		void setb2Body(b2Body *_b2body);
 		b2Body* getb2Body(void);

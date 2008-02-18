@@ -28,6 +28,15 @@ class World
 		// Fixes a thing with a pin (a revolute joint)
 		void pin(Pin *pin, Thing *thing1, Thing *thing2=0);
 		
+		// Attaches a mouse joint to a thing for dragging it around
+		void grab(Thing *thing, int x, int y);
+		
+		// Drags the grabbed thing around
+		void drag(int x, int y);
+		
+		// Lets go off the grabbed thing
+		void letGo(void);
+		
 		// Removes the object from the world, but you have to delete it yourself
 		void remove(Thing *thing);
 		
@@ -35,6 +44,11 @@ class World
 		// is is the maimum nr of things to return. Returns the number of things
 		// found.
 		int getThingsAt(int x, int y, Thing **res_things, int n, bool include_pins);
+		
+		// Gets all things (including pins) that are connected to a thing by being
+		// directly or indirectly pinned to it
+		// Returns an array that the user has to delete
+		Thing **getConnectedThings(Thing *thing, int *n);
 		
 		// Makes a thing physical, i.e. adds it to the simulation
 		bool makePhysical(Thing *thing);
@@ -67,7 +81,7 @@ class World
 		b2Body *bgbody; // Dummy body for attaching joints
 		
 		PPDestructionListener *destruction_listener;
-		
+		b2MouseJoint *mouse_joint;
 		void initPhysics(void);
 		void makeJointDummy(void);
 		void destroyJointDummy(void);
