@@ -16,11 +16,8 @@
 class World
 {
 	public:
-		World(int _width, int _height);
+		World(int _width, int _height, bool allow_sleep=true);
 		~World();
-		
-		// Allow objects to sleep, ie not simulate inactive objects to save cpu power
-		void allow_sleep(bool sleep);
 		
 		// Adds a thing , but doesn't make it physical yet
 		bool add(Thing *thing);
@@ -65,7 +62,8 @@ class World
 		// do a simulation step
 		void step(float32 timestep = TIMESTEP);
 		
-		void reset(void);
+		// Reset the world (allow_sleep says if objects may fall asleep)
+		void reset(bool allow_sleep);
 		
 		void save(char *filename, char *thumbnail);
 		bool load(char *filename);
@@ -82,7 +80,7 @@ class World
 		
 		PPDestructionListener *destruction_listener;
 		b2MouseJoint *mouse_joint;
-		void initPhysics(void);
+		void initPhysics(bool allow_sleep);
 		void makeJointDummy(void);
 		void destroyJointDummy(void);
 };

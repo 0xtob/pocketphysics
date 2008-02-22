@@ -685,14 +685,23 @@ void Canvas::penUp(int x, int y)
 						world->letGo();
 					else
 					{
+						
 						for(int i=0; i<move_n_connected_things; ++i)
 						{
 							if(move_connected_things[i]->getShape()==Thing::Pin)
 							{
 								world->makeUnphysical(move_connected_things[i]);
+							}
+						}
+						
+						for(int i=0; i<move_n_connected_things; ++i)
+						{
+							if(move_connected_things[i]->getShape()==Thing::Pin)
+							{
 								world->makePhysical(move_connected_things[i]);
 							}
 						}
+						
 						free(move_connected_things);
 					}
 					highlightthing = 0;

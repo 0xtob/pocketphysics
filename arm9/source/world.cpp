@@ -10,10 +10,10 @@
 #include <sys/dir.h>
 #include <tinyxml.h>
 
-World::World(int _width, int _height):
+World::World(int _width, int _height, bool allow_sleep):
 	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY), mouse_joint(0)
 {
-	initPhysics();
+	initPhysics(allow_sleep);
 	
 	makeJointDummy();
 }
@@ -21,11 +21,6 @@ World::World(int _width, int _height):
 World::~World()
 {
 	
-}
-
-void World::allow_sleep(bool sleep)
-{
-	b2world->m_allowSleep = sleep;
 }
 
 bool World::add(Thing *thing)
@@ -521,12 +516,16 @@ void World::makeUnphysical(Thing *thing)
 	if(thing->getShape() == Thing::Pin)
 	{
 		Pin *p = (Pin*)thing;
+		
 		if(p->getb2Joint() == 0)
 			return;
 		
-		b2world->Destroy(p->getb2Joint());
-		//b2world->DestroyJoint(p->getb2Joint()); // Is removed automatically
+		// Store the address, set the joint pointer in the pin to 0, then destroy the joint.
+		// This way, it's thread-safe (i.e. we won't get difficulties when the drawing function
+		// calls getPostition of the point.
+		b2Joint* j = p->getb2Joint();
 		p->setb2Joint(0);
+		b2world->Destroy(j);
 	}
 	else
 	{
@@ -537,7 +536,8 @@ void World::makeUnphysical(Thing *thing)
 		thing->setb2Body(0);
 	}
 	
-	b2world->Step(float32(0), 0);
+	// Commented this out because I have no idea why I did this.
+	//b2world->Step(float32(0), 0);
 }
 
 int World::getNThings(void)
@@ -601,16 +601,20 @@ void World::step(float32 timestep)
 	//
 }
 
-void World::reset(void)
+void World::reset(bool allow_sleep)
 {
 	// TODO: Delete dynamically created things
 	
 	destroyJointDummy();
-	makeJointDummy();
+	//makeJointDummy();
 	
 	// Reset all things to their original position / rotation
 	for(int i=0;i<n_things;++i)
 		makeUnphysical(things[i]);
+	
+	delete b2world;
+	initPhysics(allow_sleep);
+	makeJointDummy();
 	
 	for(int i=0;i<n_things;++i)
 		things[i]->reset();
@@ -757,8 +761,12 @@ bool World::load(char *filename)
 	float gx=DEFAULT_GRAVITY, gy=0.0;
 	worldelement->QueryFloatAttribute("gravity_x", &gx);
 	worldelement->QueryFloatAttribute("gravity_y", &gy);
-	gravity_x = gx;
-	gravity_y = gy;
+	
+	// Due to a stupid mistake of mine, the y and x components of gravity are swapped
+	// in the .pp file format.
+	gravity_x = gy;
+	gravity_y = gx;
+	setGravity(gravity_x, gravity_y);
 	
 	printf("gravity %f %f\n", gx, gy);
 	
@@ -830,7 +838,7 @@ bool World::load(char *filename)
 
 // ===================================== PRIVATE ===================================== //
 
-void World::initPhysics(void)
+void World::initPhysics(bool allow_sleep)
 {
 	// Define the size of the world. Simulation will still work
 	// if bodies reach the end of the world, but it will be slower.
@@ -843,12 +851,9 @@ void World::initPhysics(void)
 	// Define the gravity vector.
 	b2Vec2 grav(gravity_x, gravity_y);
 
-	// Do we want to let bodies sleep?
-	bool doSleep = true;
-
 	// Construct a world object, which will hold and simulate the rigid bodies.
 	
-	b2world = new b2World(*worldAABB, grav, doSleep);
+	b2world = new b2World(*worldAABB, grav, allow_sleep);
 
 	destruction_listener = new PPDestructionListener();
 	b2world->SetListener(destruction_listener);

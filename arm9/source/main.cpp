@@ -47,7 +47,7 @@
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-#define DEBUG
+//#define DEBUG
 #define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
@@ -438,7 +438,7 @@ void stopPlay(void)
 	dont_draw = true;
 	CommandPlaySample(smp_play, 48, 255, 0);
 	state.simulating = false;
-	world->reset();
+	world->reset(!dsmotion);
 	btnpause->hide();
 	btnplay->show();
 	canvas->stopSimulationMode();
@@ -889,14 +889,14 @@ void handleInput(void)
 		if(motion_init() != 0)
 		{
 			dsmotion = true;
-			world->allow_sleep(false);
+			world->reset(false);
 			
 			request_calibration();
 		}
 		else
 		{
 			dsmotion = false;
-			world->allow_sleep(true);
+			world->reset(true);
 			
 			iprintf("Get a DSMotion. They are fun!\n");
 		}
@@ -1126,13 +1126,13 @@ int main()
 	{
 		dsmotion = true;
 	  
-		world->allow_sleep(false);
+		world->reset(false);
 		request_calibration();
 	}
 	else
 	{
 		dsmotion = false;
-		world->allow_sleep(true);
+		world->reset(true);
 		
 		iprintf("Get a DSMotion. They are fun!\n");
 	}
@@ -1167,6 +1167,8 @@ int main()
 			
 			world->step();
 		}
+		else
+			swiWaitForVBlank();
 		
 		handleInput();
 		CommandProcessCommands();
