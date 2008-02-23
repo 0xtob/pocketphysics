@@ -729,6 +729,7 @@ void Player::initState(void)
 	state.patternloop = false;
 	my_memset(state.channel_active, 0, sizeof(state.channel_active));
 	my_memset(state.channel_ms_left, 0, sizeof(state.channel_ms_left));
+	my_memset(state.channel_loop, 0, sizeof(state.channel_loop));
 	my_memset(state.channel_note, EMPTY_NOTE, sizeof(state.channel_note));
 	my_memset(state.channel_instrument, NO_INSTRUMENT, sizeof(state.channel_instrument));
 	my_memset(state.channel_effect, NO_EFFECT, sizeof(state.channel_effect));
@@ -742,6 +743,7 @@ void Player::initState(void)
 	state.playing_single_sample = false;
 	state.single_sample_ms_remaining = 0;
 	state.single_sample_channel = 0;
+	state.single_sample_loop = false;
 }
 
 void Player::initEffState(void)

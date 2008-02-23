@@ -10,6 +10,8 @@
 #include "typewriter.pal.h"
 #include "typewriter.raw.h"
 
+#include "../../../generic/command.h"
+
 #define BSP	0x8 // Backspace
 #define CAP	0x2 // Caps
 #define RET	'\n' // Enter
@@ -20,6 +22,8 @@
 
 #define TW_WIDTH	219
 #define TW_HEIGHT	162
+
+extern Sample *smp_play, *smp_click;
 
 /* ===================== PUBLIC ===================== */
 
@@ -158,8 +162,11 @@ void Typewriter::penDown(u8 px, u8 py)
 			}
 		}
 		
+		CommandPlaySample(smp_play, 48, 255, 0);
+		
 	// Inside the button area?
 	} else if ((px>x)&&(px<x+TW_WIDTH)&&(py<y+TW_HEIGHT)&&(py>ky+12*8)) {
+		CommandPlaySample(smp_click, 48, 255, 0);
 		gui.penDown(px, py);
 	}
 }

@@ -220,13 +220,14 @@ int main(int argc, char ** argv) {
 	irqEnable(IRQ_TIMER1);
 	
 	irqSet(IRQ_TIMER0, playTimerHandler);
-	irqEnable(IRQ_TIMER0);
 
 	player = new Player(playTimerHandler);
 	player->registerRowCallback(onTick);
 	player->registerPatternChangeCallback(onPatternChange);
 	player->registerSampleFinishCallback(onSampleFinish);
 
+	irqEnable(IRQ_TIMER0);
+	
 	//enable sound
 	powerON(POWER_SOUND);
 	SOUND_CR = SOUND_ENABLE | SOUND_VOL(0x7F);

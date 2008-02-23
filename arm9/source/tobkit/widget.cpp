@@ -296,13 +296,13 @@ u8 Widget::getStringWidth(const char *str, u16 limit)
 	return res;
 }
 
-void Widget::drawMonochromeIcon(u8 tx, u8 ty, u8 tw, u8 th, const u8 *icon) {
+void Widget::drawMonochromeIcon(u8 tx, u8 ty, u8 tw, u8 th, const u8 *icon, u16 col) {
 	
 	for(u8 j=0;j<th;++j) {
 		for(u8 i=0;i<tw;++i) {
 			u16 pixelidx = tw*j+i;
 			if(icon[pixelidx/8] & BIT(pixelidx%8) ) {
-				*(*vram+SCREEN_WIDTH*(y+ty+j)+x+tx+i) = RGB15(0,0,0)|BIT(15);
+				*(*vram+SCREEN_WIDTH*(y+ty+j)+x+tx+i) = col;
 			}
 		}
 	}

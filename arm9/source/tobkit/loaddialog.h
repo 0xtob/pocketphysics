@@ -30,7 +30,7 @@ class PPLoadDialog : public Widget
 	private:
 		void draw(void);
 		
-		void drawPolaroid(u8 px, u8 py, u8 thumb);
+		void drawPolaroid(u8 px, u8 py, u8 thumb, bool del_icon=true);
 		
 		void loadThumbnail(char *filename, int idx);
 		void loadThumbnails(void);
@@ -44,6 +44,9 @@ class PPLoadDialog : public Widget
 		char **names;
 		char *resultname;
 		char *datadir;
+		
+		bool ask_delete_confirm;
+		int file_to_delete;
 };
 
 #endif /*LOADDIALOG_H_*/

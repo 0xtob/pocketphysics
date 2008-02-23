@@ -667,6 +667,7 @@ void World::save(char *filename, char *thumbnail)
 	doc.LinkEndChild(versionelement);
 	
 	TiXmlElement *worldelement = new TiXmlElement( "world" );
+	//TODO: Swap x and y axis!
 	worldelement->SetDoubleAttribute("gravity_x", DEFAULT_GRAVITY);
 	worldelement->SetDoubleAttribute("gravity_y", 0.0);
 	
@@ -768,8 +769,6 @@ bool World::load(char *filename)
 	gravity_y = gx;
 	setGravity(gravity_x, gravity_y);
 	
-	printf("gravity %f %f\n", gx, gy);
-	
 	Thing **id_table = (Thing**)calloc(1, sizeof(Thing*)*MAX_THINGS);
 	
 	for(TiXmlElement *thingelement = worldelement->FirstChildElement(); thingelement;
@@ -792,12 +791,10 @@ bool World::load(char *filename)
 		}
 		else if(strcmp("polygon", thingelement->Value()) == 0)
 		{
-			printf("%d: polygon\n", id);
 			thing = new Polygon(thingelement);
 		}
 		else if(strcmp("pin", thingelement->Value()) == 0)
 		{
-			printf("%d: pin\n", id);
 			thing = new Pin(thingelement);
 			Pin *pin_ = (Pin*)thing;
 			
@@ -807,8 +804,6 @@ bool World::load(char *filename)
 			pinned_element->QueryIntAttribute("id", &pinned_ids[0]);
 			pinned_element = pinned_element->NextSiblingElement();
 			pinned_element->QueryIntAttribute("id", &pinned_ids[1]);
-			
-			printf("  pinned %d to %d\n", pinned_ids[0], pinned_ids[1]);
 			
 			for(int j=0; j<2; ++j)
 			{
@@ -826,12 +821,12 @@ bool World::load(char *filename)
 		
 		add(thing);
 		makePhysical(thing);
-		
-		printf("Thing loaded\n");
 	}
 	printf("Loading finished\n");
 	
 	delete id_table;
+	
+	reset(b2world->m_allowSleep);
 	
 	return true;
 }

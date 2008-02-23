@@ -61,7 +61,7 @@ class Widget {
 		void drawPixel(u8 tx, u8 ty, u16 col);
 		void drawGradient(u16 col1, u16 col2, u8 tx, u8 ty, u8 tw, u8 th);
 		inline const u16 interpolateColor(u16 col1, u16 col2, u8 alpha);
-		void drawMonochromeIcon(u8 tx, u8 ty, u8 tw, u8 th, const u8 *icon);
+		void drawMonochromeIcon(u8 tx, u8 ty, u8 tw, u8 th, const u8 *icon, u16 col=(RGB15(0,0,0)|BIT(15)));
 		void drawImage(u8 tx, u8 ty, u8 tw, u8 th, const u16 *image);
 		
 		// Stylus utility functions
