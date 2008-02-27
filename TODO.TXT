@@ -3,6 +3,8 @@
 - increase object limit by only drawing on-screen objects
 - make joints more stable, see forum
 - see forum
+- canvas: mysqrt -> hw-sqrt, => mehr objekte
+- world: mysqrt -> hw-sqrt
 
 REMINDER: change version!
 

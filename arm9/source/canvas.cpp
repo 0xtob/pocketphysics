@@ -350,8 +350,10 @@ void Canvas::penMove(int x, int y)
 				s32 dx = x - xp;
 				s32 dy = y - yp;
 				
-				int last_len = mysqrt(last_dx*last_dx + last_dy*last_dy);
-				int len = mysqrt(dx*dx + dy*dy);
+				//int last_len = mysqrt(last_dx*last_dx + last_dy*last_dy);
+				int last_len = nds_sqrt64(last_dx*last_dx + last_dy*last_dy);
+				//int len = mysqrt(dx*dx + dy*dy);
+				int len = nds_sqrt64(dx*dx + dy*dy);
 				
 				double angle = acos((double)(last_dx*dx + last_dy*dy) / (double)( last_len * len )) * 180.0 / M_PI ;
 				
@@ -407,7 +409,8 @@ void Canvas::penMove(int x, int y)
 			
 			int px, py;
 			circle->getPosition(&px, &py);
-			int radius = mysqrt((x - px)*(x - px) + (y - py)*(y - py));
+			//int radius = mysqrt((x - px)*(x - px) + (y - py)*(y - py));
+			int radius = nds_sqrt64((x - px)*(x - px) + (y - py)*(y - py));
 			circle->setRadius(radius);
 		}
 		break;
@@ -771,7 +774,8 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	//ody = 4 * (ody<<8) / len;
 	
 	// Even faster than the obove using DS's hardware
-	int len = sqrt32(odx*odx + ody*ody);
+	int len = nds_sqrt64(odx*odx + ody*ody);
+	//int len = mysqrt(odx*odx + ody*ody);
 	odx = div32(4 * (odx<<8), len); // using 24.8 fixed point for normal calculation
 	ody = div32(4 * (ody<<8), len);
 		

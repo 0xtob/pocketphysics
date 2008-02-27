@@ -327,11 +327,36 @@ void updateInput(void)
 
 void VBlankHandler()
 {
+	// And now for something completely ugly:
+	// Save the values of the div and sqrt registers, because the vblank might interrupt
+	// a division/sqrt operation
+	while(SQRT_CR & SQRT_BUSY);
+	while(DIV_CR & DIV_BUSY);
+	u16 divcr = DIV_CR;
+	int64 divnum64 = DIV_NUMERATOR64;
+	int64 divdenom64 = DIV_DENOMINATOR64;
+
+	u16 sqrtcr = SQRT_CR;
+	int64 sqrtparam64 = SQRT_PARAM64;
+
 	mearureFps();
 	updateInput();
 	if(!dialog_active)
 		handleScrolling();
 	draw();
+
+	// Now restore the div/sqrt registers
+	DIV_CR = divcr;
+	while(DIV_CR & DIV_BUSY);
+	DIV_NUMERATOR64 = divnum64;
+	DIV_DENOMINATOR64 = divdenom64;
+	
+	SQRT_CR = sqrtcr;
+	while(SQRT_CR & SQRT_BUSY);
+	SQRT_PARAM64 = sqrtparam64;
+	
+	while(SQRT_CR & SQRT_BUSY);
+	while(DIV_CR & DIV_BUSY);
 }
 
 void switchScreens(void)

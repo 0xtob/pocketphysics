@@ -322,7 +322,8 @@ bool World::makePhysical(Thing *thing)
 					{
 						int dx = cur_x - lastx;
 						int dy = cur_y - lasty;
-						int len = mysqrt(dx*dx + dy*dy);
+						//int len = mysqrt(dx*dx + dy*dy);
+						int len = nds_sqrt64(dx*dx + dy*dy);
 						if( len < 2 )
 						{
 							polygon->removeVertex(i);
@@ -439,7 +440,8 @@ bool World::makePhysical(Thing *thing)
 						
 						int odx = y1 - y2;
 						int ody = x2 - x1;
-						int len = mysqrt(odx*odx + ody*ody);
+						//int len = mysqrt(odx*odx + ody*ody);
+						int len = nds_sqrt64(odx*odx + ody*ody);
 						//printf("%d ", len);
 						odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
 						ody = (4 * (ody<<8) / len)>>8;
