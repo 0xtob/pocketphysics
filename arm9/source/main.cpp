@@ -48,7 +48,7 @@
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
 #define DEBUG
-#define DUALSCREEN
+//#define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)

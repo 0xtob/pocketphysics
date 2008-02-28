@@ -55,8 +55,8 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 	if(body1 != 0)
 	{
 		b2RevoluteJointDef *jointDef = new b2RevoluteJointDef();
-		jointDef->body1 = body1;
-		jointDef->body2 = body2;
+		//jointDef->body1 = body1;
+		//jointDef->body2 = body2;
 		jointDef->userData = pin;
 		int px, py;
 		pin->getPosition(&px, &py);
@@ -66,8 +66,9 @@ void World::pin(Pin *pin, Thing *thing1, Thing *thing2)
 		
 		//jointDef->localAnchor1 = pinpos;
 		//jointDef->localAnchor2 = pinpos;
-		jointDef->SetInWorld(pinpos);
-		b2Joint* joint = b2world->Create(jointDef);
+		//jointDef->SetInWorld(pinpos);
+		jointDef->Initialize(body1, body2, pinpos);
+		b2Joint* joint = b2world->CreateJoint(jointDef);
 		pin->setb2Joint(joint);
 		
 		//b2Vec2 a1 = pin->getb2Joint()->GetAnchor1();
@@ -101,7 +102,7 @@ void World::grab(Thing *thing, int x, int y)
 	b2Vec2 p((float32)x/PIXELS_PER_UNIT, (float32)y/PIXELS_PER_UNIT);
 	md.target = p;
 	md.maxForce = (float32)1000 * body->m_mass;
-	mouse_joint = (b2MouseJoint*)b2world->Create(&md);
+	mouse_joint = (b2MouseJoint*)b2world->CreateJoint(&md);
 	body->WakeUp();
 }
 
@@ -120,7 +121,7 @@ void World::letGo(void)
 {
 	if(mouse_joint)
     {
-		b2world->Destroy(mouse_joint);
+		b2world->DestroyJoint(mouse_joint);
 		mouse_joint = NULL;
     }
 }
@@ -162,8 +163,8 @@ void World::remove(Thing *thing)
 int World::getThingsAt(int x, int y, Thing ** res_things, int n, bool include_pins)
 {
 	b2AABB *touchAABB = new b2AABB();
-	touchAABB->minVertex.Set((float32)(x-2)/PIXELS_PER_UNIT, (float32)(y-2)/PIXELS_PER_UNIT);
-	touchAABB->maxVertex.Set((float32)(x+2)/PIXELS_PER_UNIT, (float32)(y+2)/PIXELS_PER_UNIT);
+	touchAABB->lowerBound.Set((float32)(x-2)/PIXELS_PER_UNIT, (float32)(y-2)/PIXELS_PER_UNIT);
+	touchAABB->upperBound.Set((float32)(x+2)/PIXELS_PER_UNIT, (float32)(y+2)/PIXELS_PER_UNIT);
 	b2Vec2 point = b2Vec2(x/PIXELS_PER_UNIT, y/PIXELS_PER_UNIT);
 	
 	b2Shape *shape[16];
@@ -311,40 +312,19 @@ bool World::makePhysical(Thing *thing)
 			{
 				Polygon *polygon = (Polygon*)thing;
 				
-				// Eliminate vertices that are too close
-				int cur_x, cur_y, lastx = -1, lasty = -1;
-				int i=0;
-				while(i<polygon->getNVertices())
-				{
-					polygon->getVertex(i, &cur_x, &cur_y, true);
-					
-					if(i>0)
-					{
-						int dx = cur_x - lastx;
-						int dy = cur_y - lasty;
-						//int len = mysqrt(dx*dx + dy*dy);
-						int len = nds_sqrt64(dx*dx + dy*dy);
-						if( len < 2 )
-						{
-							polygon->removeVertex(i);
-							printf("removing vtx\n");
-							i--; // Don't advance, because the vertex with the next index now has the current index
-						}
-					}
-					
-					lastx = cur_x;
-					lasty = cur_y;
-					
-					i++;
-				}
-				
 				b2BodyDef *bodyDef = new b2BodyDef();
 				bodyDef->userData = thing; // So you can always get the thing pointer from a b2body
 				
 				int posx, posy;
 				polygon->getPosition(&posx, &posy);
-				bodyDef->position.Set(float32((float)posx/PIXELS_PER_UNIT), float32((float)posy/PIXELS_PER_UNIT));
+				bodyDef->position.Set(float32(float32(posx)/PIXELS_PER_UNIT), float32(float32(posy)/PIXELS_PER_UNIT));
 				bodyDef->angle = polygon->getRotation();
+				
+				b2Body* body = 0;
+				if(thing->getType() == Thing::Dynamic)
+					body = b2world->CreateDynamicBody(bodyDef);
+				else
+					body = b2world->CreateStaticBody(bodyDef);
 				
 				// Closed polygon: Convert to a set of convex polygons and add them to the body
 				if(polygon->getClosed() == true)
@@ -374,21 +354,16 @@ bool World::makePhysical(Thing *thing)
 						points_x[i] = float32(vx)/PIXELS_PER_UNIT;
 						points_y[i] = float32(vy)/PIXELS_PER_UNIT;
 					}
-					  
+					
 					b2Polygon *pgon = new b2Polygon(points_x, points_y, n_points);
 					
 					//b2Polygon *tracedPgon = TraceEdge(pgon);
-					b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, bodyDef, polyDef);
+					b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, pgon, body, polyDef);
 					//b2PolygonDef* deleteMe = DecomposeConvexAndAddTo(b2world, tracedPgon, bodyDef, polyDef);
 					//delete tracedPgon;
 					
-					b2Body* body = 0;
 					if(deleteMe)
 					{
-						b2Shape *shl;
-						shl = bodyDef->shapes;
-						
-						body = b2world->Create(bodyDef);
 						polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
 						delete[] deleteMe;
 					}
@@ -403,6 +378,7 @@ bool World::makePhysical(Thing *thing)
 					if(!deleteMe)
 					{
 						printf("Convex decomposition failed!\n");
+						b2world->DestroyBody(body);
 						return false;
 					}
 					
@@ -453,12 +429,13 @@ bool World::makePhysical(Thing *thing)
 						polyDef->vertices[2].Set(float32(x2+odx)/PIXELS_PER_UNIT, float32(y2+ody)/PIXELS_PER_UNIT);
 						polyDef->vertices[3].Set(float32(x1+odx)/PIXELS_PER_UNIT, float32(y1+ody)/PIXELS_PER_UNIT);
 						
-						bodyDef->AddShape(b2world->Create(polyDef));
+						body->CreateShape(polyDef);
+						body->SetMassFromShapes();
+						//bodyDef->AddShape(b2world->Create(polyDef));
 						
 						delete polyDef;
 					}
 					
-					b2Body *body = b2world->Create(bodyDef);
 					polygon->setb2Body(body); // So you can always get the b2body pointer from a thing
 				}
 				
@@ -489,9 +466,15 @@ bool World::makePhysical(Thing *thing)
 				bodydef->position.Set(float32((float)posx/PIXELS_PER_UNIT), float32((float)posy/PIXELS_PER_UNIT));
 				bodydef->angle = circle->getRotation();
 				
-				bodydef->AddShape(b2world->Create(circledef));
+				b2Body* body = 0;
 				
-				b2Body* body = b2world->Create(bodydef);
+				if(thing->getType() == Thing::Dynamic)
+					body = b2world->CreateDynamicBody(bodydef);
+				else
+					body = b2world->CreateStaticBody(bodydef);
+				
+				body->CreateShape(circledef);
+				body->SetMassFromShapes();
 				
 				circle->setb2Body(body);
 				
@@ -527,14 +510,14 @@ void World::makeUnphysical(Thing *thing)
 		// calls getPostition of the point.
 		b2Joint* j = p->getb2Joint();
 		p->setb2Joint(0);
-		b2world->Destroy(j);
+		b2world->DestroyJoint(j);
 	}
 	else
 	{
 		if(thing->getb2Body() == 0)
 			return;
 		
-		b2world->Destroy(thing->getb2Body());
+		b2world->DestroyBody(thing->getb2Body());
 		thing->setb2Body(0);
 	}
 	
@@ -842,8 +825,8 @@ void World::initPhysics(bool allow_sleep)
 	b2AABB *worldAABB = new b2AABB();
 	float32 w = (float32)width/PIXELS_PER_UNIT;
 	float32 h = (float32)height/PIXELS_PER_UNIT;
-	worldAABB->minVertex.Set(-256/PIXELS_PER_UNIT, -192/PIXELS_PER_UNIT);
-	worldAABB->maxVertex.Set(w+256/PIXELS_PER_UNIT, h+192/PIXELS_PER_UNIT);
+	worldAABB->lowerBound.Set(-256/PIXELS_PER_UNIT, -192/PIXELS_PER_UNIT);
+	worldAABB->upperBound.Set(w+256/PIXELS_PER_UNIT, h+192/PIXELS_PER_UNIT);
 	
 	// Define the gravity vector.
 	b2Vec2 grav(gravity_x, gravity_y);
@@ -866,8 +849,10 @@ void World::makeJointDummy(void)
     
     b2BodyDef *bd = new b2BodyDef();
     bd->position.Set(-100/PIXELS_PER_UNIT, -100/PIXELS_PER_UNIT);
-    bd->AddShape(b2world->Create(gd));
-    bgbody = b2world->Create(bd);
+    
+    bgbody = b2world->CreateStaticBody(bd);
+    
+    bgbody->CreateShape(gd);
     
     delete gd;
     delete bd;
@@ -875,6 +860,6 @@ void World::makeJointDummy(void)
 
 void World::destroyJointDummy(void)
 {
-	b2world->Destroy(bgbody);
+	b2world->DestroyBody(bgbody);
 	bgbody = 0;
 }

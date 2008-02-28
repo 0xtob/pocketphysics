@@ -515,6 +515,33 @@ void Canvas::penUp(int x, int y)
 						poly->removeVertex(n_vertices-1);
 					}
 					
+					// Eliminate vertices that are too close
+					int cur_x, cur_y, lastx = -1, lasty = -1;
+					int i=0;
+					while(i<poly->getNVertices())
+					{
+						poly->getVertex(i, &cur_x, &cur_y, true);
+
+						if(i>0)
+						{
+							int dx = cur_x - lastx;
+							int dy = cur_y - lasty;
+							int len = nds_sqrt64(dx*dx + dy*dy);
+							if( len < 2 )
+							{
+								poly->removeVertex(i);
+								printf("removing vtx\n");
+								i--; // Don't advance, because the vertex with the next index now has the current index
+							}
+						}
+
+						lastx = cur_x;
+						lasty = cur_y;
+
+						i++;
+					}
+					
+					n_vertices = poly->getNVertices();
 					
 					// Delete if too small
 					if( n_vertices < 2 )

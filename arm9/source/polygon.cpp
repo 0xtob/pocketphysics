@@ -95,10 +95,13 @@ void Polygon::getVertex(int index, int *_x, int *_y, bool relative)
 			pos.x = float32(vertices_x[index]);
 			pos.y = float32(vertices_y[index]);
 			
-			b2Mat22 rot = b2body->GetRotationMatrix();
+			//b2Mat22 rot = b2body->GetRotationMatrix();
+			float32 angle = b2body->GetAngle();
+			b2Mat22 rot;
+			rot.Set(float32(angle));
 			pos = b2Mul(rot, pos);
 			
-			b2Vec2 origin = b2body->GetOriginPosition();
+			b2Vec2 origin = b2body->GetWorldCenter();
 			*_x = (int)(pos.x + origin.x*PIXELS_PER_UNIT);
 			*_y = (int)(pos.y + origin.y*PIXELS_PER_UNIT);
 		}
