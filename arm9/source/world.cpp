@@ -4,6 +4,7 @@
 #include "Circle.h"
 
 #include "tools.h"
+#include "defines.h"
 
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -652,7 +653,6 @@ void World::save(char *filename, char *thumbnail)
 	TiXmlElement *ppsketchelement = new TiXmlElement( "ppsketch" );
 	doc.LinkEndChild(ppsketchelement);
 	
-	// World
 	
 	Thing **idtable = (Thing**)malloc(sizeof(Thing*) * (n_things+1));
 	
@@ -672,7 +672,7 @@ void World::save(char *filename, char *thumbnail)
 	authorelement->LinkEndChild(authortext);	
 	ppsketchelement->LinkEndChild(authorelement);
 
-	
+	// World
 	TiXmlElement *worldelement = new TiXmlElement( "world" );
 	//TODO: Swap x and y axis!
 	worldelement->SetDoubleAttribute("gravity_x", DEFAULT_GRAVITY);
@@ -721,13 +721,13 @@ void World::save(char *filename, char *thumbnail)
 	free(idtable);
 	
 	// Thumbnail
-	
+#ifndef SCLITE
 	TiXmlElement *imageelement = new TiXmlElement( "image" );
 	TiXmlText *imagetext = new TiXmlText( thumbnail );
 	imageelement->LinkEndChild(imagetext);
 	
 	ppsketchelement->LinkEndChild(imageelement);
-	
+#endif
 	// Save
 	
 	char *f = (char*)calloc(1, 255);

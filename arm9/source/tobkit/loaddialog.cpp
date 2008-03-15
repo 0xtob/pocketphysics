@@ -260,7 +260,8 @@ void PPLoadDialog::drawPolaroid(u8 px, u8 py, u8 thumb, bool del_icon)
 	drawBox(px, py, POLAROID_WIDTH, POLAROID_HEIGHT, RGB15(0,0,0)|BIT(15));
 	if(names[thumb])
 	{
-		drawImage(px+2, py+2, 64, 48, thumbnails[thumb]);
+		if(thumbnails[thumb] != 0)
+			drawImage(px+2, py+2, 64, 48, thumbnails[thumb]);
 		drawString(names[thumb], px+3, py+51, 64, theme->col_text);
 	}
 	
@@ -286,6 +287,12 @@ void PPLoadDialog::loadThumbnail(char *filename, int idx)
 		root = &doc;
 	
 	TiXmlElement *imageelement = root->FirstChildElement("image");
+	if(imageelement == 0)
+	{
+		thumbnails[idx] = 0;
+		return;
+	}
+		
 	const char *b64screenshot = imageelement->GetText();
 	
 	char *cscreenshot;

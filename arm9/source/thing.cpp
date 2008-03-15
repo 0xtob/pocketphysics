@@ -67,6 +67,21 @@ void Thing::getPosition(int *_x, int*_y)
 	}
 }
 
+void Thing::getCenterOfGravity(int *_x, int *_y)
+{
+	if(!b2body)
+	{
+		// If it's not physical, we shouldn't care about this anyway
+		*_x = x;
+		*_y = y;
+		return;
+	}
+	
+	b2Vec2 cog = b2body->m_sweep.c;
+	*_x = (int)round(cog.x*PIXELS_PER_UNIT);
+	*_y = (int)round(cog.y*PIXELS_PER_UNIT);
+}
+
 void Thing::setb2Body(b2Body *_b2body)
 {
 	b2body = _b2body;

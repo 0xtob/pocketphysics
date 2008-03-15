@@ -436,6 +436,19 @@ void Canvas::penMove(int x, int y)
 				pinthing2 = things[1];
 			else
 				pinthing2 = 0;
+			
+			// Snap to center of gravity
+			if(count > 0)
+			{
+				int tx, ty;
+				things[0]->getCenterOfGravity(&tx, &ty);
+				int dx = tx - x;
+				int dy = ty - y;
+				if(dx*dx + dy*dy <= 25)
+				{
+					pin->setPosition(tx, ty);
+				}
+			}
 		}
 		break;
 		

@@ -43,11 +43,13 @@
 #include "sound_del_raw.h"
 #include "tobkit/tools.h"
 
+#include"defines.h"
+
 #define min(x,y)	((x)<(y)?(x):(y))
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-//#define DEBUG
+#define DEBUG
 #define DUALSCREEN
 
 #define WORLD_WIDTH		(3*256)
@@ -266,7 +268,7 @@ void handleScrolling(void)
 {
 	touchPosition touch = touchReadXY();
 	
-	if( (keysheld & KEY_TOUCH) && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) )
+	if( (keysheld & KEY_TOUCH) && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) && (touch.px < 232) && (touch.py < 171) )
 	{
 		stylus_scrolling = true;
 		scroll_vx = (touch.px - 120) / 5;
@@ -586,7 +588,10 @@ char *b64screenshot(void)
 
 void save(void)
 {
-	char *thumbnail = b64screenshot();
+	char *thumbnail = 0;
+#ifndef SCLITE
+	thumbnail = b64screenshot();
+#endif
 	world->save(current_filename, thumbnail);
 	free(thumbnail);
 }
