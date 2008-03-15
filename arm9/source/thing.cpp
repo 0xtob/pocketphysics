@@ -1,7 +1,7 @@
 #include "thing.h"
 
 Thing::Thing(Type _type, CreatedBy _createdby, Shape _shape):
-	type(_type), createdby(_createdby), shape(_shape), x(0), y(0), rotation(0.0f), b2body(0)
+	type(_type), createdby(_createdby), shape(_shape), x(0), y(0), rotation(0.0f), b2body(0), invisible(false)
 {
 	
 }
@@ -116,6 +116,18 @@ void Thing::reset(void)
 	
 	setPosition(x, y);
 	setRotation(rotation);
+	
+	invisible = false;
+}
+
+void Thing::hide(void)
+{
+	invisible = true;
+}
+
+bool Thing::isInvisible(void)
+{
+	return invisible;
 }
 
 // ===================================== PROTECTED ===================================== //

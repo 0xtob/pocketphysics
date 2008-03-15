@@ -207,6 +207,8 @@ int main(int argc, char ** argv) {
 	// Reset the clock if needed
 	rtcReset();
 
+	readUserSettings();
+	
 	irqInit();
 	irqSet(IRQ_VBLANK, VblankHandler);
 	SetYtrigger(80);

@@ -11,7 +11,7 @@
 #include <tinyxml.h>
 
 World::World(int _width, int _height, bool allow_sleep):
-	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY), mouse_joint(0)
+	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY), mouse_joint(0), make_unphysical_list_length(0)
 {
 	initPhysics(allow_sleep);
 	
@@ -419,8 +419,8 @@ bool World::makePhysical(Thing *thing)
 						//int len = mysqrt(odx*odx + ody*ody);
 						int len = nds_sqrt64(odx*odx + ody*ody);
 						//printf("%d ", len);
-						odx = (4 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
-						ody = (4 * (ody<<8) / len)>>8;
+						odx = (6 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
+						ody = (6 * (ody<<8) / len)>>8;
 						printf("%d: %d - %d %d (%d %d, %d %d)\n", i, len, odx, ody, x1, y1, x2, y2);
 						
 						polyDef->vertexCount = 4;
@@ -428,6 +428,11 @@ bool World::makePhysical(Thing *thing)
 						polyDef->vertices[1].Set(float32(x2)/PIXELS_PER_UNIT, float32(y2)/PIXELS_PER_UNIT);
 						polyDef->vertices[2].Set(float32(x2+odx)/PIXELS_PER_UNIT, float32(y2+ody)/PIXELS_PER_UNIT);
 						polyDef->vertices[3].Set(float32(x1+odx)/PIXELS_PER_UNIT, float32(y1+ody)/PIXELS_PER_UNIT);
+						
+						// Print vertices
+						//for(int v=0; v<4; ++v)
+						//	printf("%f,%f\n", (float)polyDef->vertices[v].x, (float)polyDef->vertices[v].y);
+						//printf("\n");
 						
 						body->CreateShape(polyDef);
 						body->SetMassFromShapes();
@@ -562,6 +567,8 @@ void World::step(float32 timestep)
 	// TODO: Delete objects that move out of the screen
 	b2world->Step(timestep, ITERATIONS);
 	
+	makeMarkedThingsUnphysical();
+	
 	// wrapping test code
 	/*
 	for(int i=0;i<n_things;++i)
@@ -591,7 +598,6 @@ void World::reset(bool allow_sleep)
 	// TODO: Delete dynamically created things
 	
 	destroyJointDummy();
-	//makeJointDummy();
 	
 	// Reset all things to their original position / rotation
 	for(int i=0;i<n_things;++i)
@@ -642,14 +648,30 @@ void World::save(char *filename, char *thumbnail)
 	TiXmlDeclaration *decl = new TiXmlDeclaration( "1.0", "", "" );
 	doc.LinkEndChild( decl );
 	
+	// Root node
+	TiXmlElement *ppsketchelement = new TiXmlElement( "ppsketch" );
+	doc.LinkEndChild(ppsketchelement);
+	
 	// World
 	
 	Thing **idtable = (Thing**)malloc(sizeof(Thing*) * (n_things+1));
 	
+	// Version
 	TiXmlElement *versionelement = new TiXmlElement( "creator" );
-	TiXmlText *versiontext = new TiXmlText( "Pocket Physics 0.5" );
+	TiXmlText *versiontext = new TiXmlText( "Pocket Physics 0.6" );
 	versionelement->LinkEndChild(versiontext);	
-	doc.LinkEndChild(versionelement);
+	ppsketchelement->LinkEndChild(versionelement);
+	
+	// Author
+	char authorname[10] = {0};
+	for(int i=0; i<10; ++i)
+		authorname[i] = PersonalData->name[i] & 0xFF;
+	
+	TiXmlElement *authorelement = new TiXmlElement( "author" );
+	TiXmlText *authortext = new TiXmlText( authorname );
+	authorelement->LinkEndChild(authortext);	
+	ppsketchelement->LinkEndChild(authorelement);
+
 	
 	TiXmlElement *worldelement = new TiXmlElement( "world" );
 	//TODO: Swap x and y axis!
@@ -694,7 +716,7 @@ void World::save(char *filename, char *thumbnail)
 		worldelement->LinkEndChild(thingelement);
 	}
 	
-	doc.LinkEndChild(worldelement);
+	ppsketchelement->LinkEndChild(worldelement);
 	
 	free(idtable);
 	
@@ -704,7 +726,7 @@ void World::save(char *filename, char *thumbnail)
 	TiXmlText *imagetext = new TiXmlText( thumbnail );
 	imageelement->LinkEndChild(imagetext);
 	
-	doc.LinkEndChild(imageelement);
+	ppsketchelement->LinkEndChild(imageelement);
 	
 	// Save
 	
@@ -742,8 +764,14 @@ bool World::load(char *filename)
 	if( !doc.LoadFile() )
 		return false;
 	
+	TiXmlNode *root;
+	if( doc.FirstChildElement("ppsketch") != 0 )
+		root = doc.FirstChildElement("ppsketch");
+	else // No root element => old version
+		root = &doc;
+		
 	// World
-	TiXmlElement *worldelement = doc.FirstChildElement("world");
+	TiXmlElement *worldelement = root->FirstChildElement("world");
 	float gx=DEFAULT_GRAVITY, gy=0.0;
 	worldelement->QueryFloatAttribute("gravity_x", &gx);
 	worldelement->QueryFloatAttribute("gravity_y", &gy);
@@ -816,7 +844,23 @@ bool World::load(char *filename)
 	return true;
 }
 
+void World::markForMakingUnphysical(Thing *thing)
+{
+	make_unphysical_list[make_unphysical_list_length] = thing;
+	make_unphysical_list_length++;
+}
+
 // ===================================== PRIVATE ===================================== //
+
+void World::makeMarkedThingsUnphysical(void)
+{
+	for(int i=0; i<make_unphysical_list_length; ++i)
+	{
+		makeUnphysical(make_unphysical_list[i]);
+		make_unphysical_list[i]->hide(); // Also, hide it
+	}
+	make_unphysical_list_length = 0;
+}
 
 void World::initPhysics(bool allow_sleep)
 {
@@ -837,6 +881,8 @@ void World::initPhysics(bool allow_sleep)
 
 	destruction_listener = new PPDestructionListener();
 	b2world->SetListener(destruction_listener);
+	boundary_listener = new PPBoundaryListener(this);
+	b2world->SetListener(boundary_listener);
 	
 	delete worldAABB;
 }

@@ -38,6 +38,9 @@ void Canvas::draw(void)
 	{
 		Thing *thing = world->getThing(i);
 		
+		if(thing->isInvisible()) // Don't draw invisible things
+			continue;
+			
 		u16 col=0;
 		if( (thing->getShape() == Thing::Polygon) || (thing->getShape() == Thing::Circle) )
 		{
@@ -518,6 +521,7 @@ void Canvas::penUp(int x, int y)
 					// Eliminate vertices that are too close
 					int cur_x, cur_y, lastx = -1, lasty = -1;
 					int i=0;
+					int total_len = 0;
 					while(i<poly->getNVertices())
 					{
 						poly->getVertex(i, &cur_x, &cur_y, true);
@@ -527,12 +531,14 @@ void Canvas::penUp(int x, int y)
 							int dx = cur_x - lastx;
 							int dy = cur_y - lasty;
 							int len = nds_sqrt64(dx*dx + dy*dy);
-							if( len < 2 )
+							if( len < 5 )
 							{
 								poly->removeVertex(i);
 								printf("removing vtx\n");
 								i--; // Don't advance, because the vertex with the next index now has the current index
 							}
+							else
+								total_len += len;
 						}
 
 						lastx = cur_x;
@@ -544,7 +550,7 @@ void Canvas::penUp(int x, int y)
 					n_vertices = poly->getNVertices();
 					
 					// Delete if too small
-					if( n_vertices < 2 )
+					if( ( n_vertices < 2 ) || (total_len < 10) )
 					{
 						printf("too small\n");
 						world->remove(poly);
@@ -596,7 +602,7 @@ void Canvas::penUp(int x, int y)
 					// Delete if too small
 					int vx, vy;
 					poly->getVertex(0, &vx, &vy);
-					if( (abs(x-vx) < 3) || (abs(y-vy) < 3) || ( abs(x-vx)*abs(y-vy) < 50 ) )
+					if( (abs(x-vx) < 6) || (abs(y-vy) < 6) || ( abs(x-vx)*abs(y-vy) < 50 ) )
 					{
 						printf("too small\n");
 						world->remove(poly);

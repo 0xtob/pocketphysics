@@ -23,7 +23,7 @@ class Thing
 		virtual ~Thing() {};
 		Shape getShape(void);
 		Type getType(void);
-		virtual void setPosition(int _x, int _y);
+		void setPosition(int _x, int _y);
 		virtual void getPosition(int *_x, int*_y);
 		void setb2Body(b2Body *_b2body);
 		b2Body* getb2Body(void);
@@ -32,6 +32,9 @@ class Thing
 		
 		// Reset to original position/rotation
 		void reset(void);
+		
+		void hide(void);
+		bool isInvisible(void);
 		
 		virtual TiXmlElement *toXML(void) = 0;
 		
@@ -44,6 +47,7 @@ class Thing
 		int x, y;
 		float32 rotation; // Radians
 		b2Body* b2body;
+		bool invisible;
 };
 
 #endif

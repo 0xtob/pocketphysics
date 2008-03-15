@@ -101,7 +101,7 @@ void Polygon::getVertex(int index, int *_x, int *_y, bool relative)
 			rot.Set(float32(angle));
 			pos = b2Mul(rot, pos);
 			
-			b2Vec2 origin = b2body->GetWorldCenter();
+			b2Vec2 origin = b2body->GetPosition();
 			*_x = (int)(pos.x + origin.x*PIXELS_PER_UNIT);
 			*_y = (int)(pos.y + origin.y*PIXELS_PER_UNIT);
 		}

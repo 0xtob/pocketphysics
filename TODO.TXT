@@ -1,4 +1,3 @@
-- bomb bug
 - long line -> crash
 - increase object limit by only drawing on-screen objects
 - make joints more stable, see forum

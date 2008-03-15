@@ -71,7 +71,7 @@ void PPLoadDialog::penDown(u8 px, u8 py)
 		}
 		
 		// On the back button?
-		if(showback && (px>=x+6) && (px<=x+6+22) && (py>=y+138) && (py<=y+138+19) )
+		if(showback && (px>=x+5) && (px<=x+5+22) && (py>=y+138) && (py<=y+138+19) )
 		{
 			page--;
 			if(page == 0)
@@ -82,7 +82,7 @@ void PPLoadDialog::penDown(u8 px, u8 py)
 		}
 
 		// On the fwd button?
-		if(showfwd && (px>=x+191) && (px<=x+191+22) && (py>=y+138) && (py<=y+138+19) )
+		if(showfwd && (px>=x+189) && (px<=x+189+22) && (py>=y+138) && (py<=y+138+19) )
 		{
 			page++;
 			showback = true;
@@ -240,16 +240,16 @@ void PPLoadDialog::draw(void)
 		// fwd and back buttons
 		if(showback)
 		{
-			drawGradient(theme->col_dark_ctrl, theme->col_light_ctrl, 6, 138, 22, 19);
-			drawBox(6, 138, 22, 19, theme->col_outline);
-			drawMonochromeIcon(6+5, 138+1, 12, 12, icon_back_raw);
+			drawGradient(theme->col_dark_ctrl, theme->col_light_ctrl, 5, 138, 22, 19);
+			drawBox(5, 138, 22, 19, theme->col_outline);
+			drawMonochromeIcon(5+5, 138+1, 12, 12, icon_back_raw);
 		}
 		
 		if(showfwd)
 		{
-			drawGradient(theme->col_dark_ctrl, theme->col_light_ctrl, 191, 138, 22, 19);
-			drawBox(191, 138, 22, 19, theme->col_outline);
-			drawMonochromeIcon(191+5, 138+1, 12, 12, icon_play_raw);
+			drawGradient(theme->col_dark_ctrl, theme->col_light_ctrl, 189, 138, 22, 19);
+			drawBox(189, 138, 22, 19, theme->col_outline);
+			drawMonochromeIcon(189+5, 138+1, 12, 12, icon_play_raw);
 		}
 	}
 }
@@ -279,7 +279,13 @@ void PPLoadDialog::loadThumbnail(char *filename, int idx)
 	if( !doc.LoadFile() )
 		return;
 	
-	TiXmlElement *imageelement = doc.FirstChildElement("image");
+	TiXmlNode *root;
+	if( doc.FirstChildElement("ppsketch") != 0 )
+		root = doc.FirstChildElement("ppsketch");
+	else // No root element => old version
+		root = &doc;
+	
+	TiXmlElement *imageelement = root->FirstChildElement("image");
 	const char *b64screenshot = imageelement->GetText();
 	
 	char *cscreenshot;

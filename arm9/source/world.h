@@ -6,12 +6,15 @@
 #include "thing.h"
 #include "Pin.h"
 #include "PPDestructionListener.h"
+#include "PPBoundaryListener.h"
 
 #define MAX_THINGS			50
 #define DEFAULT_GRAVITY		2.0f//8.0f //60.0f
 
 #define TIMESTEP			(float32(1.0f / 20.0f))
-#define ITERATIONS			3//6
+#define ITERATIONS			3 //6
+
+class PPBoundaryListener;
 
 class World
 {
@@ -68,7 +71,11 @@ class World
 		void save(char *filename, char *thumbnail);
 		bool load(char *filename);
 		
+		// Marks a thing for being made unphysical after the current physics iteration
+		void markForMakingUnphysical(Thing *thing);
+		
 	private:
+		
 		Thing* things[MAX_THINGS];
 		int n_things;
 		int width, height;
@@ -79,7 +86,15 @@ class World
 		b2Body *bgbody; // Dummy body for attaching joints
 		
 		PPDestructionListener *destruction_listener;
+		PPBoundaryListener *boundary_listener;
 		b2MouseJoint *mouse_joint;
+		
+		Thing *make_unphysical_list[MAX_THINGS];
+		int make_unphysical_list_length;
+
+		// Makes things unphysical that were marked
+		void makeMarkedThingsUnphysical(void);
+		
 		void initPhysics(bool allow_sleep);
 		void makeJointDummy(void);
 		void destroyJointDummy(void);
