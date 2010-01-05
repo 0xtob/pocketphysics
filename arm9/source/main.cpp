@@ -43,7 +43,7 @@
 #include "sound_del_raw.h"
 #include "tobkit/tools.h"
 
-#include"defines.h"
+#include "defines.h"
 
 #define min(x,y)	((x)<(y)?(x):(y))
 
@@ -743,13 +743,13 @@ void setupGui(void)
 		btnsave = new BitButton(233, 121, 22, 19, &main_vram, icon_save_raw, 18, 15, 2, 1);
 		btnsave->registerPushCallback(showSaveDialog);
 		
-		btnstop = new BitButton(233, 151, 22, 19, &main_vram, icon_stop_raw, 12, 12, 5, 1);
+		btnstop = new BitButton(233, 152, 22, 19, &main_vram, icon_stop_raw, 12, 12, 5, 1);
 		btnstop->registerPushCallback(stopPlay);
 		
-		btnplay = new BitButton(233, 171, 22, 19, &main_vram, icon_play_raw, 12, 12, 5, 1);
+		btnplay = new BitButton(233, 172, 22, 19, &main_vram, icon_play_raw, 12, 12, 5, 1);
 		btnplay->registerPushCallback(startPlay);
 		
-		btnpause = new BitButton(233, 171, 22, 19, &main_vram, icon_pause_raw, 12, 12, 5, 1);
+		btnpause = new BitButton(233, 172, 22, 19, &main_vram, icon_pause_raw, 12, 12, 5, 1);
 		btnpause->registerPushCallback(pausePlay);
 		
 		//gui->registerWidget(tbbselect, 0, MAIN_SCREEN);
@@ -944,11 +944,11 @@ void handleInput(void)
 void loadSamples()
 {
 	u32 n_samples = sound_pen_raw_size/2;
-	u32 loopstart = n_samples / 10;
-	smp_crayon = new Sample((void*)sound_pen_raw, n_samples, 16381);
-	smp_crayon->setLoop(PING_PONG_LOOP);
-	smp_crayon->setLoopStartAndLength(loopstart, n_samples - loopstart);
-	
+	u32 loopstart = n_samples / 10;iprintf("%d\n",__LINE__);
+	smp_crayon = new Sample((void*)sound_pen_raw, n_samples, 16381);iprintf("%d\n",__LINE__);
+	smp_crayon->setLoop(PING_PONG_LOOP);iprintf("%d\n",__LINE__);
+	smp_crayon->setLoopStartAndLength(loopstart, n_samples - loopstart);iprintf("%d\n",__LINE__);
+	iprintf("%d\n",__LINE__);
 	smp_play = new Sample((void*)sound_play_raw, sound_play_raw_size/2, 16381);
 	smp_click = new Sample((void*)sound_click_raw, sound_click_raw_size/2, 16381);
 	smp_del = new Sample((void*)sound_del_raw, sound_del_raw_size/2, 16381);
@@ -1067,6 +1067,10 @@ int main()
 	
 	ulInitGfx();
 	
+#ifdef DEBUG
+	defaultExceptionHandler();
+#endif
+	
 	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
 #ifdef DEBUG
 	videoSetModeSub(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG2_ACTIVE);
@@ -1107,18 +1111,20 @@ int main()
 #ifdef DEBUG
 	printf("Pocket Physics Debug build\n");
 #endif
-	
+	// Gosh, this stuff must have been coded in the middle ages! Pull out ntxm and tobkit and use their lib versions.
+	// Sheesh!
+	iprintf("%d\n",__LINE__);
 	lcdMainOnBottom();
-	
+	iprintf("%d\n",__LINE__);
 	CommandInit();
-	
+	iprintf("%d\n",__LINE__);
 	loadSamples();
 #ifndef DEBUG
 	showSplash();
 #endif
 	world = new World(WORLD_WIDTH, WORLD_HEIGHT);
 	canvas = new Canvas(world);
-	
+	iprintf("%d\n",__LINE__);
 	theme = new Theme;
 	
 	u16 col = RGB15(0,0,0)|BIT(15);

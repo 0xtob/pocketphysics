@@ -1,7 +1,5 @@
 #include "fileselector.h"
 
-#include "tools.h"
-
 //#include "fatlib/gba_nds_fat.h"
 
 #include <unistd.h>
@@ -11,7 +9,12 @@
 #include <sys/dir.h>
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <string>
+#include <algorithm>
+
+#include "tools.h"
 
 // TODO:
 /*

@@ -1,9 +1,9 @@
 - long line -> crash
-- increase object limit by only drawing on-screen objects
+- increase object limit by counting lines instead of objects
 - make joints more stable, see forum
 - see forum
-- canvas: mysqrt -> hw-sqrt, => mehr objekte
-- world: mysqrt -> hw-sqrt
+- größeres X für löschen
+- pp api (http://forum.gbadev.org/privmsg.php?folder=inbox&mode=read&p=25788)
 
 REMINDER: change version!
 

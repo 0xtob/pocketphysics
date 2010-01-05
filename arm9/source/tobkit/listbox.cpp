@@ -1,5 +1,7 @@
 #include "listbox.h"
 
+#include <stdlib.h>
+
 /* ===================== PUBLIC ===================== */
 
 ListBox::ListBox(u8 _x, u8 _y, u8 _width, u8 _height, uint16 **_vram, u8 n_items,

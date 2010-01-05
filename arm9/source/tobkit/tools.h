@@ -23,8 +23,10 @@
 #include <stdio.h>
 #include <fat.h>
 
+#ifndef max
 #define min(x,y)	((x)<(y)?(x):(y))
 #define max(x,y)	((x)>(y)?(x):(y))
+#endif
 
 void lowercase(char *str);
 void crash(const char *msg);
