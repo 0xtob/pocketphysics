@@ -1,9 +1,9 @@
 #ifndef _CANVAS_H_
 #define _CANVAS_H_
 
-#include <ulib/ulib.h>
 
 #include "world.h"
+#include <ulib/ulib.h>
 
 class Canvas
 {

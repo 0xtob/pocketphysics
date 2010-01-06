@@ -3,78 +3,155 @@
 #---------------------------------------------------------------------------------
 
 ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM)
+$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
 include $(DEVKITARM)/ds_rules
 
-export TARGET		:=	$(shell basename $(CURDIR))
-export TOPDIR		:=	$(CURDIR)
-
+#---------------------------------------------------------------------------------
+# TARGET is the name of the output
+# BUILD is the directory where object files & intermediate files will be placed
+# SOURCES is a list of directories containing source code
+# INCLUDES is a list of directories containing extra header files
+# DATA is a list of directories containing binary files embedded using bin2o
+# GRAPHICS is a list of directories containing image files to be converted with grit
+#---------------------------------------------------------------------------------
+TARGET		:=	$(shell basename $(CURDIR))
+BUILD		:=	build
+SOURCES		:=	source
+INCLUDES	:=	include box2d/Include
+DATA		:=	data  
+GRAPHICS	:=	gfx  
 
 #---------------------------------------------------------------------------------
-# path to tools - this can be deleted if you set the path in windows
+# options for code generation
 #---------------------------------------------------------------------------------
-export PATH		:=	$(DEVKITARM)/bin:$(PATH)
+ARCH	:=	-mthumb -mthumb-interwork
 
-.PHONY: $(TARGET).arm7 $(TARGET).arm9
+CFLAGS	:=	-g -Wall -O3\
+			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
+			-ffast-math \
+			-DTARGET_FLOAT32_IS_FIXED -DTARGET_IS_NDS \
+			$(ARCH)
 
+CFLAGS	+=	$(INCLUDE) -DARM9
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
+
+ASFLAGS	:=	-g $(ARCH)
+LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Lbox2d/Source/Gen/nds-fixed/lib/
+
+#---------------------------------------------------------------------------------
+# any extra libraries we wish to link with the project (order is important)
+#---------------------------------------------------------------------------------
+LIBS	:= -lbox2d -lfat -lul -lpng -lz -ltinyxml -lnds9
+ 
+ 
+#---------------------------------------------------------------------------------
+# list of directories containing libraries, this must be the top level containing
+# include and lib
+#---------------------------------------------------------------------------------
+LIBDIRS	:=	$(LIBNDS) 
+ 
+#---------------------------------------------------------------------------------
+# no real need to edit anything past this point unless you need to add additional
+# rules for different file extensions
+#---------------------------------------------------------------------------------
+ifneq ($(BUILD),$(notdir $(CURDIR)))
+#---------------------------------------------------------------------------------
+
+export OUTPUT	:=	$(CURDIR)/$(TARGET)
+
+export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+					$(foreach dir,$(DATA),$(CURDIR)/$(dir)) \
+					$(foreach dir,$(GRAPHICS),$(CURDIR)/$(dir))
+
+export DEPSDIR	:=	$(CURDIR)/$(BUILD)
+
+CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+PNGFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.png)))
+SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+ 
+#---------------------------------------------------------------------------------
+# use CXX for linking C++ projects, CC for standard C
+#---------------------------------------------------------------------------------
+ifeq ($(strip $(CPPFILES)),)
+#---------------------------------------------------------------------------------
+	export LD	:=	$(CC)
+#---------------------------------------------------------------------------------
+else
+#---------------------------------------------------------------------------------
+	export LD	:=	$(CXX)
+#---------------------------------------------------------------------------------
+endif
+#---------------------------------------------------------------------------------
+
+export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
+					$(addsuffix .o,$(PNGFILES)) \
+					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+ 
+export INCLUDE	:=	$(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir)) \
+					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+					-I$(CURDIR)/$(BUILD)
+ 
+export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+icons := $(wildcard *.bmp)
+
+ifneq (,$(findstring $(TARGET).bmp,$(icons)))
+	export GAME_ICON := $(CURDIR)/$(TARGET).bmp
+else
+	ifneq (,$(findstring icon.bmp,$(icons)))
+		export GAME_ICON := $(CURDIR)/icon.bmp
+	endif
+endif
+ 
+.PHONY: $(BUILD) clean
+ 
+#---------------------------------------------------------------------------------
+$(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+ 
+#---------------------------------------------------------------------------------
+clean:
+	@echo clean ...
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds $(TARGET).arm9
+
+#---------------------------------------------------------------------------------
+else
+ 
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-all: $(TARGET).ds.gba
-
-$(TARGET).ds.gba	: $(TARGET).nds
-
-$(TARGET).gba.nds: $(TARGET).nds
-	cat ndsloader.bin $(TARGET).nds > $(TARGET).gba.nds
-
-cp: all
-	dlditool ~/coding/dsdev/tools/dldi/mpcf.dldi $(TARGET).nds
-	cp $(TARGET).nds /media/GBAMP
-	pumount /media/GBAMP
-
-r4: all
-	dlditool ~/coding/dsdev/tools/dldi/r4tf.dldi $(TARGET).nds
-	cp $(TARGET).nds /media/R4
-	pumount /media/R4
-
-wmb: all
-	sudo $(WMB) $(TARGET).nds $(WLANIF)
-
-wmb2: all
-	$(WMB2) $(TARGET).nds
-
-dsftp: all
-	echo  'put -f $(TARGET).nds\nquote boot $(TARGET).nds' | ncftp  -u tob -p tob 192.168.1.88
+$(OUTPUT).nds	: 	$(OUTPUT).elf
+$(OUTPUT).elf	:	$(OFILES)
+ 
+#---------------------------------------------------------------------------------
+%.bin.o	:	%.bin
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	$(bin2o)
 
 #---------------------------------------------------------------------------------
-$(TARGET).nds	:	$(TARGET).arm7 $(TARGET).arm9
-	ndstool -c $(TARGET).nds -7 $(TARGET).arm7 -9 $(TARGET).arm9 -b ppicon.bmp "Pocket Physics"
+%.png.o     :       %.png
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
 
 #---------------------------------------------------------------------------------
-$(TARGET).arm7	: arm7/$(TARGET).elf
-$(TARGET).arm9	: arm9/$(TARGET).elf
-
+%.raw.o     :       %.raw
 #---------------------------------------------------------------------------------
-arm7/$(TARGET).elf:
-	$(MAKE) -C arm7
+	@echo $(notdir $<)
+	@$(bin2o)
 
+%.s %.h   : %.png %.grit
 #---------------------------------------------------------------------------------
-arm9/$(TARGET).elf:
-	$(MAKE) -C arm9
+	grit $< -fts -o$*
 
-#---------------------------------------------------------------------------------
-clean:
-	$(MAKE) -C arm9 clean
-	$(MAKE) -C arm7 clean
-	rm -f $(TARGET).ds.gba $(TARGET).nds $(TARGET).arm7 $(TARGET).arm9
-
-emu: all
-	~/bin/nocash.sh $(TARGET).nds
-
-fcsr: all
-	~/coding/dsdev/tools/fcsr/build.sh pp.img sketches
-	padbin 512 $(TARGET).ds.gba
-	cat $(TARGET).ds.gba pp.img > $(TARGET)_fcsr.ds.gba
-	dlditool ~/coding/dsdev/tools/dldi/fcsr.dldi $(TARGET)_fcsr.ds.gba
+-include $(DEPSDIR)/*.d
+ 
+#---------------------------------------------------------------------------------------
+endif
+#---------------------------------------------------------------------------------------

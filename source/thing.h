@@ -1,8 +1,8 @@
 #ifndef _THING_H_
 #define _THING_H_
 
-#include <Box2D.h>
-#include <tinyxml.h>
+#include "Box2D.h"
+#include "tinyxml.h"
 
 #define PIXELS_PER_UNIT	(float32(50))
 #define UNITS_PER_PIXEL	(float32(1)/PIXELS_PER_UNIT)

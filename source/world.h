@@ -1,7 +1,7 @@
 #ifndef _WORLD_H_
 #define _WORLD_H_
 
-#include <Box2D.h>
+#include "Box2D.h"
 
 #include "thing.h"
 #include "Pin.h"
