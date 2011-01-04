@@ -19,7 +19,7 @@ include $(DEVKITARM)/ds_rules
 TARGET		:=	$(shell basename $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source
-INCLUDES	:=	include box2d/Include
+INCLUDES	:=	include box2d/Include tinyxml/include
 DATA		:=	data  
 GRAPHICS	:=	gfx  
 
@@ -38,19 +38,19 @@ CFLAGS	+=	$(INCLUDE) -DARM9
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Lbox2d/Source/Gen/nds-fixed/lib/
+LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-LIBS	:= -lbox2d -lfat -lul -lpng -lz -ltinyxml -lnds9
+LIBS	:= -ltobkit -lsigc-2.0 -lbox2d -lfat -lul -lpng -lz -ltinyxml -lnds9
  
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(LIBNDS) 
+LIBDIRS	:=	$(LIBNDS) /home/tob/coding/dsdev/tob/tobkit/tobkit_new/tobkit/ /opt/devkitpro/libs ../box2d/Source/Gen/nds-fixed
  
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -103,7 +103,7 @@ ifneq (,$(findstring $(TARGET).bmp,$(icons)))
 	export GAME_ICON := $(CURDIR)/$(TARGET).bmp
 else
 	ifneq (,$(findstring icon.bmp,$(icons)))
-		export GAME_ICON := $(CURDIR)/icon.bmp
+		export GAME_ICON := $(CURDIR)/ppicon.bmp
 	endif
 endif
  
