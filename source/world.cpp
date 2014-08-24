@@ -24,12 +24,13 @@
 #include "Circle.h"
 
 #include "tools.h"
-#include "defines.h"
+//#include "defines.h"
 
+#include <nds.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/dir.h>
-#include <tinyxml.h>
+#include "tinyxml.h"
 
 World::World(int _width, int _height, bool allow_sleep):
 	n_things(0), width(_width), height(_height), gravity_x(0), gravity_y(DEFAULT_GRAVITY), mouse_joint(0), make_unphysical_list_length(0)
@@ -327,6 +328,7 @@ bool World::makePhysical(Thing *thing)
 		if(thing->getType() == Thing::NonSolid)
 			return false;
 		
+
 		switch(thing->getShape())
 		{
 			case(Thing::Polygon):
@@ -438,7 +440,7 @@ bool World::makePhysical(Thing *thing)
 						int odx = y1 - y2;
 						int ody = x2 - x1;
 						//int len = mysqrt(odx*odx + ody*ody);
-						int len = nds_sqrt64(odx*odx + ody*ody);
+						int len = sqrt64(odx*odx + ody*ody);
 						//printf("%d ", len);
 						odx = (6 * (odx<<8) / len)>>8; // using 24.8 fixed point for normal calculation
 						ody = (6 * (ody<<8) / len)>>8;
@@ -635,28 +637,28 @@ void World::reset(bool allow_sleep)
 		makePhysical(things[i]);
 }
 
-void World::save(char *filename, char *thumbnail)
+void World::save(const char *filename, char *thumbnail)
 {
 	// Since 0.5, data is stored in data/pocketphysics/sketches instead of pocketphysics/sketches
 	// backwards compatibility for the old path is still provided
 	bool use_data_dir = true;
-	if(diropen("pocketphysics/sketches"))
+	if(opendir("pocketphysics/sketches"))
 		use_data_dir = false;
 	else
 	{
-		if(!diropen("data"))
+		if(!opendir("data"))
 		{
 			mkdir("data", 777);
 		}
-		if(!diropen("data/pocketphysics"))
+		if(!opendir("data/pocketphysics"))
 		{
 			mkdir("data/pocketphysics", 777);
 		}
-		if(!diropen("data/pocketphysics/sketches"))
+		if(!opendir("data/pocketphysics/sketches"))
 		{
 			mkdir("data/pocketphysics/sketches", 777);
 		}
-		if(!diropen("data/pocketphysics/sketches"))
+		if(!opendir("data/pocketphysics/sketches"))
 		{
 			printf("diropen failed!\n");
 			return;
@@ -684,8 +686,9 @@ void World::save(char *filename, char *thumbnail)
 	
 	// Author
 	char authorname[10] = {0};
-	for(int i=0; i<10; ++i)
+	for(int i=0; i<10; ++i) {
 		authorname[i] = PersonalData->name[i] & 0xFF;
+	}
 	
 	TiXmlElement *authorelement = new TiXmlElement( "author" );
 	TiXmlText *authortext = new TiXmlText( authorname );
@@ -759,13 +762,14 @@ void World::save(char *filename, char *thumbnail)
 	free(f);
 }
 
-bool World::load(char *filename)
+bool World::load(const char *filename)
 {
-	char *datadir = "";
-	if(diropen("data/pocketphysics/sketches"))
+	const char *datadir = "";
+	if(opendir("data/pocketphysics/sketches")) {
 		datadir = "data/pocketphysics/sketches";
-	else if(diropen("pocketphysics/sketches"))
+	} else if(opendir("pocketphysics/sketches")) {
 		datadir = "pocketphysics/sketches";
+	}
 	
 	// Clear
 	while(n_things > 0)
@@ -807,12 +811,6 @@ bool World::load(char *filename)
 	for(TiXmlElement *thingelement = worldelement->FirstChildElement(); thingelement;
 		thingelement=thingelement->NextSiblingElement())
 	{
-		Thing::Type type;
-		if(strcmp(thingelement->Attribute("type"), "dynamic") == 0)
-			type = Thing::Dynamic;
-		else if(strcmp(thingelement->Attribute("type"), "static") == 0)
-			type = Thing::Solid;
-		
 		int id = 0;
 		thingelement->QueryIntAttribute("id", &id);
 		

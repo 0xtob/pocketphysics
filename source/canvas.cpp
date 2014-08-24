@@ -1,8 +1,26 @@
+/*
+ *    Pocket Physics - A mechanical construction kit for Nintendo DS
+ *                   Copyright 2005-2010 Tobias Weyand (me@tobw.net)
+ *                            http://code.google.com/p/pocketphysics
+ *
+ * TobKit is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * TobKit is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public
+ * License along with Pocket Physics. If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+
 #include "canvas.h"
 
-#include "sample.h"
-#include "../../generic/command.h"
-#include "tools.h"
+#include "tobkit/tools.h"
 
 #include "thing.h"
 #include "polygon.h"
@@ -10,6 +28,8 @@
 #include "Pin.h"
 
 #include "crayon_png.h"
+#include "paper2_png.h"
+#include "sound_del_raw.h"
 
 #define MAX_POINTS              64
 #define DRAW_MIN_POINT_DIST     7 //15
@@ -25,13 +45,63 @@
 #define COL_PIN_HL      RGB15(15,31,15)
 
 
-Canvas::Canvas(World *_world):
-	world(_world), drawing(false), pinthing1(0), pinthing2(0), highlightthing(0), simulation_mode(false)
+namespace TobKit
+{
+
+Canvas::Canvas(WidgetManager *owner, World *_world, int x, int y, int width, int height, u16 listening_buttons, bool dual_screen):
+	Widget(x, y, width, height, owner, listening_buttons),
+	pen_mode(pmNormal), object_mode(omDynamic), world(_world), currentthing(NULL), drawing(false), pinthing1(0), pinthing2(0),
+	highlightthing(0), simulation_mode(false), dual_screen(true), dont_draw_things(false), draw_window(true),
+	scroll_x(0), scroll_y(0), scroll_vx(0),	scroll_vy(0), keysheld(0)
 {
 	crayon = ulLoadImageFilePNG((const char*)crayon_png, (int)crayon_png_size, UL_IN_VRAM, UL_PF_PAL3_A5);
+	imgbg = ulLoadImageFilePNG((const char*)paper2_png, (int) paper2_png_size, UL_IN_VRAM, UL_PF_PAL8);
+	imgbg->stretchX = world->getWidth() + 24;
+	imgbg->stretchY = world->getHeight() + 21;
 }
 
 void Canvas::draw(void)
+{
+	handleScrolling();
+
+    if (ulGetMainLcd() || (!dual_screen)) // Bottom Screen
+    {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
+        glMatrixMode(GL_MODELVIEW);
+
+        glTranslate3f32(-scroll_x, 0, 0);
+        glTranslate3f32(0, -scroll_y, 0);
+
+        ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+        ulDrawImageXY(imgbg, 0, 0);
+        ulSetAlpha(UL_FX_ALPHA, 31, 1);
+
+        if(!dont_draw_things) {
+            drawThings();
+        }
+    }
+    else if(dual_screen)// Top Screen
+    {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrthof32(0, world->getWidth(), world->getHeight(), 0, -4090, 1);
+        glMatrixMode(GL_MODELVIEW);
+
+        ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+        ulDrawImageXY(imgbg, 0, 0);
+        ulSetAlpha(UL_FX_ALPHA, 31, 1);
+        if(!dont_draw_things) {
+            drawThings();
+        }
+        if(draw_window) {
+            drawScreenRect(scroll_x, scroll_y);
+        }
+    }
+}
+
+void Canvas::drawThings(void)
 {
 	int n_things = world->getNThings();
 	for(int i=0;i<n_things;++i)
@@ -46,21 +116,26 @@ void Canvas::draw(void)
 		{
 			if(thing->getType() == Thing::Dynamic)
 			{
-				if( (thing == pinthing1) || (thing == pinthing2) || (thing == highlightthing) )
+				if( (thing == pinthing1) || (thing == pinthing2) || (thing == highlightthing) ) {
 					col = COL_DYNAMIC_HL;
-				else
+				} else {
 					col = COL_DYNAMIC;
+				}
 			}
-			else if(thing->getType() == Thing::Solid)
-				if(thing == highlightthing)
+			else if(thing->getType() == Thing::Solid) {
+				if(thing == highlightthing) {
 					col = COL_SOLID_HL;
-				else
+				} else {
 					col = COL_SOLID;
-			else if(thing->getType() == Thing::NonSolid)
-				if(thing == highlightthing)
+				}
+			}
+			else if(thing->getType() == Thing::NonSolid) {
+				if(thing == highlightthing) {
 					col = COL_PIN_HL;
-				else
+				} else {
 					col = COL_PIN;
+				}
+			}
 		}
 		
 		switch (thing->getShape())
@@ -113,7 +188,7 @@ void Canvas::draw(void)
 				int vecy = ( (radius<<6) * (int)SIN_bin[(angle * 512 / 360) % 512] ) >> 6;
 				
 				int lastx=0, lasty=0;
-				int n_segments = max(5, min(16, radius*radius/20));
+				int n_segments = MAX(5, MIN(16, radius*radius/20));
 				for(int i=0;i<=n_segments;++i)
 				{
 					vecx = ( (radius<<6) * (int)COS_bin[(angle + 512 * i / n_segments) % 512]) >> 6;
@@ -167,6 +242,9 @@ void Canvas::setObjectMode(ObjectMode _object_mode)
 
 void Canvas::penDown(int x, int y)
 {
+	x += scroll_x;
+	y += scroll_y;
+
 	Thing::Type type = Thing::Dynamic;
 	if( (pen_mode == pmPolygon) || (pen_mode == pmBox) || (pen_mode == pmCircle) )
 	{
@@ -308,10 +386,16 @@ void Canvas::penDown(int x, int y)
 		default:
 			break;
 	}
+
+	lastx = x;
+	lasty = y;
 }
 
 void Canvas::penMove(int x, int y)
 {
+	x += scroll_x;
+	y += scroll_y;
+
 	switch(pen_mode)
 	{
 		case pmNormal:
@@ -354,9 +438,9 @@ void Canvas::penMove(int x, int y)
 				s32 dy = y - yp;
 				
 				//int last_len = mysqrt(last_dx*last_dx + last_dy*last_dy);
-				int last_len = nds_sqrt64(last_dx*last_dx + last_dy*last_dy);
+				int last_len = sqrt64(last_dx*last_dx + last_dy*last_dy);
 				//int len = mysqrt(dx*dx + dy*dy);
-				int len = nds_sqrt64(dx*dx + dy*dy);
+				int len = sqrt64(dx*dx + dy*dy);
 				
 				double angle = acos((double)(last_dx*dx + last_dy*dy) / (double)( last_len * len )) * 180.0 / M_PI ;
 				
@@ -413,7 +497,7 @@ void Canvas::penMove(int x, int y)
 			int px, py;
 			circle->getPosition(&px, &py);
 			//int radius = mysqrt((x - px)*(x - px) + (y - py)*(y - py));
-			int radius = nds_sqrt64((x - px)*(x - px) + (y - py)*(y - py));
+			int radius = sqrt64((x - px)*(x - px) + (y - py)*(y - py));
 			circle->setRadius(radius);
 		}
 		break;
@@ -493,9 +577,11 @@ void Canvas::penMove(int x, int y)
 		default:
 			break;
 	}
+	lastx = x;
+	lasty = y;
 }
 
-void Canvas::penUp(int x, int y)
+void Canvas::penUp()
 {
 	switch(pen_mode)
 		{
@@ -543,7 +629,7 @@ void Canvas::penUp(int x, int y)
 						{
 							int dx = cur_x - lastx;
 							int dy = cur_y - lasty;
-							int len = nds_sqrt64(dx*dx + dy*dy);
+							int len = sqrt64(dx*dx + dy*dy);
 							if( len < 5 )
 							{
 								poly->removeVertex(i);
@@ -615,7 +701,7 @@ void Canvas::penUp(int x, int y)
 					// Delete if too small
 					int vx, vy;
 					poly->getVertex(0, &vx, &vy);
-					if( (abs(x-vx) < 6) || (abs(y-vy) < 6) || ( abs(x-vx)*abs(y-vy) < 50 ) )
+					if( (abs(lastx-vx) < 6) || (abs(lasty-vy) < 6) || ( abs(lastx-vx)*abs(lasty-vy) < 50 ) )
 					{
 						printf("too small\n");
 						world->remove(poly);
@@ -686,7 +772,7 @@ void Canvas::penUp(int x, int y)
 					Pin *pin = (Pin*)currentthing;
 
 					Thing *things[2] = {0, 0};
-					int count = world->getThingsAt(x, y, things, 2, false);
+					int count = world->getThingsAt(lastx, lasty, things, 2, false);
 
 					bool pinned = false;
 					if(count == 0)
@@ -764,16 +850,16 @@ void Canvas::penUp(int x, int y)
 				if(drawing)
 				{
 					Thing *thing;
-					int count = world->getThingsAt(x, y, &thing, 1, true);
+					int count = world->getThingsAt(lastx, lasty, &thing, 1, true);
 					
 					if(count > 0)
 					{
 						world->remove(thing);
 						
 						delete thing;
-						extern Sample* smp_del;
-						CommandPlaySample(smp_del, 48, 255, 1);
 						
+						soundPlaySample(sound_del_raw, SoundFormat_16Bit, sound_del_raw_size, 16381, 127, 64, false, 0);
+
 						highlightthing = 0;
 					}
 				}
@@ -787,12 +873,45 @@ void Canvas::penUp(int x, int y)
 		}
 }
 
+void Canvas::buttonPress(u16 button)
+{
+    keysheld |= button;
+}
+
+void Canvas::buttonRelease(u16 button)
+{
+    keysheld &= ~button;
+}
+
 void Canvas::drawScreenRect(int sx, int sy)
 {
 	drawLine(RGB15(0,0,0), sx-5,   sy-5,   sx+237, sy-5);
 	drawLine(RGB15(0,0,0), sx-5,   sy+176, sx+237, sy+176);
 	drawLine(RGB15(0,0,0), sx-5,   sy,     sx-5,   sy+181);
 	drawLine(RGB15(0,0,0), sx+237, sy,     sx+237, sy+181);
+}
+
+void Canvas::drawImageQuad(UL_IMAGE *img, s16 x1, s16 y1, s16 x2, s16 y2, s16 x3, s16 y3, s16 x4, s16 y4)
+{
+    ulSetTexture(img);
+    GFX_BEGIN = GL_QUADS;
+
+    GFX_COLOR = img->tint1;
+    ulVertexUVXY(img->offsetX0, img->offsetY0, x1, y1);
+
+    GFX_COLOR = img->tint3;
+    ulVertexUVXY(img->offsetX0, img->offsetY1, x2, y2);
+
+    GFX_COLOR = img->tint4;
+    ulVertexUVXY(img->offsetX1, img->offsetY1, x3, y3);
+
+    GFX_COLOR = img->tint2;
+    ulVertexUVXY(img->offsetX1, img->offsetY0, x4, y4);
+
+    GFX_END = 0;
+
+    ul_currentDepth += ul_autoDepth;
+    return;
 }
 
 void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
@@ -820,7 +939,7 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	//ody = 4 * (ody<<8) / len;
 	
 	// Even faster than the obove using DS's hardware
-	int len = nds_sqrt64(odx*odx + ody*ody);
+	int len = sqrt64(odx*odx + ody*ody);
 	//int len = mysqrt(odx*odx + ody*ody);
 	odx = div32(4 * (odx<<8), len); // using 24.8 fixed point for normal calculation
 	ody = div32(4 * (ody<<8), len);
@@ -844,7 +963,7 @@ void Canvas::drawLine(u16 col, int x1, int y1, int x2, int y2)
 	
 	ulSetImageTint(crayon, col);
 	
-	ulDrawImageQuad(crayon,
+	drawImageQuad(crayon,
 				x1+od1x, y1+od1y,
 				x2+od1x, y2+od1y,
 				x2-od2x, y2-od2y,
@@ -860,3 +979,84 @@ void Canvas::stopSimulationMode(void)
 {
 	simulation_mode = false;
 }
+
+
+#define KEYS_SCROLL_RIGHT	(KEY_RIGHT | KEY_A)
+#define KEYS_SCROLL_LEFT	(KEY_LEFT | KEY_Y)
+#define KEYS_SCROLL_UP		(KEY_UP | KEY_X)
+#define KEYS_SCROLL_DOWN	(KEY_DOWN | KEY_B)
+
+#define SCROLL_XMAX		(world->getWidth()-256+24)
+#define SCROLL_YMAX		(world->getHeight()-192+21)
+
+#define SCROLL_ACCEL	1
+#define	SCROLL_VMAX		8
+
+void Canvas::handleScrolling(void)
+{
+	//TODO: Are these lines needed?
+	//touchPosition touch;
+	//touchRead(&touch);
+//	if ((keysheld & KEY_TOUCH) && ((keysheld & KEY_L) || (keysheld & KEY_R))
+//			&& (touch.px < 232) && (touch.py < 171)) {
+//		stylus_scrolling = true;
+//		scroll_vx = (touch.px - 120) / 5;
+//		scroll_vy = (touch.py - 90) / 5;
+//	} else {
+//		stylus_scrolling = false;
+
+		if ((keysheld & KEYS_SCROLL_RIGHT)&& (scroll_vx < SCROLL_VMAX) ){
+			scroll_vx ++;
+		} else if( (keysheld & KEYS_SCROLL_LEFT) && (scroll_vx > -SCROLL_VMAX) ) {
+			scroll_vx --;
+		} else if(scroll_vx > 0) {
+			scroll_vx --;
+			if(scroll_vx < 0) {
+				scroll_vx = 0;
+			}
+		} else if(scroll_vx < 0) {
+			scroll_vx ++;
+			if(scroll_vx > 0) {
+				scroll_vx = 0;
+			}
+		}
+
+		if ((keysheld & KEYS_SCROLL_DOWN)&& (scroll_vy < SCROLL_VMAX) ){
+			scroll_vy ++;
+		} else if( (keysheld & KEYS_SCROLL_UP) && (scroll_vy > -SCROLL_VMAX) ) {
+			scroll_vy --;
+		} else if(scroll_vy > 0) {
+			scroll_vy --;
+			if(scroll_vy < 0) {
+				scroll_vy = 0;
+			}
+		} else if(scroll_vy < 0) {
+			scroll_vy ++;
+			if(scroll_vy > 0) {
+				scroll_vy = 0;
+			}
+		}
+	//}
+
+	if(scroll_vx != 0) {
+		scroll_x += scroll_vx;
+
+		if(scroll_x < 0) {
+			scroll_x = 0;
+		}
+		if(scroll_x > SCROLL_XMAX) {
+			scroll_x = SCROLL_XMAX;
+		}
+	}
+
+	if(scroll_vy != 0) {
+		scroll_y += scroll_vy;
+
+		if(scroll_y < 0)
+		scroll_y = 0;
+		if(scroll_y > SCROLL_YMAX)
+		scroll_y = SCROLL_YMAX;
+	}
+}
+
+};

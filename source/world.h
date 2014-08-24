@@ -88,12 +88,15 @@ class World
 		// Reset the world (allow_sleep says if objects may fall asleep)
 		void reset(bool allow_sleep);
 		
-		void save(char *filename, char *thumbnail);
-		bool load(char *filename);
+		void save(const char *filename, char *thumbnail);
+		bool load(const char *filename);
 		
 		// Marks a thing for being made unphysical after the current physics iteration
 		void markForMakingUnphysical(Thing *thing);
 		
+		int getWidth() { return width; }
+		int getHeight() { return height; }
+
 	private:
 		
 		Thing* things[MAX_THINGS];

@@ -1,22 +1,40 @@
+/*
+ *    Pocket Physics - A mechanical construction kit for Nintendo DS
+ *                   Copyright 2005-2010 Tobias Weyand (me@tobw.net)
+ *                            http://code.google.com/p/pocketphysics
+ *
+ * Pocket Physics is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * Pocket Physics is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public
+ * License along with Pocket Physics. If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+
+#include "Box2D.h"
 #include "tobkit/tobkit.h"
+#include "loaddialog.h"
 #include <ulib/ulib.h>
 
 #include <nds/arm9/ndsmotion.h>
 #include <fat.h>
 #include <sys/dir.h>
 
-#include "../../generic/command.h"
-
-#include "sample.h"
-
 #include "world.h"
 #include "polygon.h"
 #include "canvas.h"
-
 #include "state.h"
 
+#include "tools.h"
+
 #include "pocketphysics_png.h"
-#include "paper2_png.h"
 
 #include "icon_flp_raw.h"
 #include "icon_dynamic_raw.h"
@@ -36,43 +54,24 @@
 #include "icon_save_raw.h"
 #include "icon_load_raw.h"
 
-
 #include "sound_click_raw.h"
 #include "sound_pen_raw.h"
 #include "sound_play_raw.h"
 #include "sound_del_raw.h"
-#include "tobkit/tools.h"
-
-#include "defines.h"
 
 #define min(x,y)	((x)<(y)?(x):(y))
 
 #define PEN_DOWN (~IPC->buttons & (1 << 6))
 
-#define DEBUG
-#define DUALSCREEN
+//#define DEBUG
 
 #define WORLD_WIDTH		(3*256)
 #define WORLD_HEIGHT	(3*192)
 
-#define SCROLL_XMAX		(WORLD_WIDTH-256+24)
-#define SCROLL_YMAX		(WORLD_HEIGHT-192+21)
+const bool DUAL_SCREEN = true;
 
-#define SCROLL_ACCEL	1
-#define	SCROLL_VMAX		8
-
-#define KEYS_SCROLL_RIGHT	(KEY_RIGHT | KEY_A)
-#define KEYS_SCROLL_LEFT	(KEY_LEFT | KEY_Y)
-#define KEYS_SCROLL_UP		(KEY_UP | KEY_X)
-#define KEYS_SCROLL_DOWN	(KEY_DOWN | KEY_B)
-
-int scroll_x=0;
-int scroll_y=0;
-
-int scroll_vx=0;
-int scroll_vy=0;
-
-u16 keysdown=0, keysheld=0, keysup=0;
+u16 keysdown = 0, keysheld = 0, keysup = 0;
+touchPosition touch;
 
 bool stylus_scrolling;
 
@@ -87,109 +86,102 @@ bool init = true;
 int motion_x_offset = 2048;
 int motion_y_offset = 2048;
 
-int fps=60;
-int slowfps=60;
+int fps = 60;
+int slowfps = 60;
 int currentframe = 0;
 bool framesdone[60];
 bool framedone = false;
 int accumulated_timesteps = 0;
 int passed_frames = 0;
 int passed_physics_ticks = 0;
+int sample_pen_id;
 
 bool main_screen_active = false;
-
-bool dont_draw = false;
-
 bool dialog_active = false; // If a dislog is active, send all pen events to the GUI
-
 bool fat_ok = false;
 
-char *current_filename = 0;
+std::string current_filename;
 
-UL_IMAGE *imgbg;
 
-u16 *main_vram = (u16*)BG_BMP_RAM(2);
-u16 *sub_vram = (u16*)BG_BMP_RAM_SUB(2);
+
+u16 *main_vram = (u16*) BG_BMP_RAM(2);
+u16 *sub_vram = (u16*) BG_BMP_RAM_SUB(2);
 
 World *world;
 
 State state;
 
-Theme *theme;
-GUI *gui;
+TobKit::GUI *gui_main, *gui_sub;
 
-Canvas *canvas;
+TobKit::Canvas *canvas;
 
-Sample *smp_crayon, *smp_play, *smp_click, *smp_del;
-
-MessageBox *mb;
-
-Typewriter *tw;
-
-PPLoadDialog *load_dialog;
+TobKit::MessageBox *mb;
+TobKit::Typewriter *tw;
+TobKit::PPLoadDialog *load_dialog;
 
 // <Side Bar>
-	//BitButton *btnflipmain, *btnflipsub;
-	BitButton *btnplay, *btnstop, *btnpause, *btnload, *btnsave;
-	ToggleBitButton::ToggleBitButtonGroup *tbbgsidebar;
-	ToggleBitButton /* *tbbselect,*/ *tbbdynamic, *tbbsolid, *tbbnonsolid;
+//BitButton *btnflipmain, *btnflipsub;
+TobKit::BitButton *btnplay, *btnstop, *btnpause, *btnload, *btnsave;
+TobKit::AlternativeButton::AlternativeButtonGroup *tbbgsidebar;
+TobKit::ToggleBitButton /* *tbbselect,*/*tbbdynamic, *tbbsolid, *tbbnonsolid;
 // </Side Bar>
 
 // <Bottom Bar>
-	ToggleBitButton *tbbbox, *tbbpolygon, *tbbcircle, *tbbpin, *tbbdelete, *tbbmove;
-	ToggleBitButton::ToggleBitButtonGroup *tbbgobjects;
-	BitButton *buttonzap;
+TobKit::ToggleBitButton *tbbbox, *tbbpolygon, *tbbcircle, *tbbpin, *tbbdelete,
+		*tbbmove;
+TobKit::AlternativeButton::AlternativeButtonGroup *tbbgobjects;
+TobKit::BitButton *buttonzap;
 // </Bottom Bar>
+
 
 void lidSleep()
 {
-	__asm(".arm"); 
-   __asm("mcr p15,0,r0,c7,c0,4");
-   __asm("mov r0, r0");
-   __asm("BX lr");
+	__asm(".arm");
+	__asm("mcr p15,0,r0,c7,c0,4");
+	__asm("mov r0, r0");
+	__asm("BX lr");
 }
 
 void mearureFps()
 {
 	main_screen_active = !main_screen_active;
-	
-	if(state.simulating)
+
+	if (state.simulating)
 		accumulated_timesteps++;
-	
+
 	passed_frames++; // same as accumulated timesteps but for scrolling
-	
+
 	framesdone[currentframe] = framedone;
-	
-	if(!framedone)
+
+	if (!framedone)
 		--fps;
-	if(!framesdone[(currentframe+1)%60])
+	if (!framesdone[(currentframe + 1) % 60])
 		++fps;
-	
+
 	currentframe = (currentframe + 1) % 60;
-	
+
 	//if(currentframe == 0)
 	//	printf("%d\n",fps);
-	
+
 	// Adjust the timestep slowly! This buffers sudden fps increases which
 	// would result in "bullet-time" effects.
-	if(currentframe%10==0)
-	{
-		if(slowfps < fps)
+	if (currentframe % 10 == 0) {
+		if (slowfps < fps)
 			slowfps++;
-		else if(slowfps > fps)
+		else if (slowfps > fps)
 			slowfps--;
-		
+
 		// Commented out because dynamic timestep adjustment makes simulation nondeterministic
 		//timeStep = 2.0f / (float)slowfps;
 	}
-	
+
 	framedone = false;
 }
 
 void drawBgBox(void)
 {
 	ulSetAlpha(UL_FX_ALPHA, 10, 1);
-	ulDrawFillRect(16, 15, 16+219, 15+162, RGB15(0,0,0));
+	ulDrawFillRect(16, 15, 16 + 219, 15 + 162, RGB15(0,0,0));
 }
 
 void drawSideBar(void)
@@ -206,124 +198,41 @@ void drawBottomBar(void)
 
 void draw()
 {
-	ulEndFrame();
-	
-	ulStartDrawing2D();
-#ifdef DUALSCREEN
-	if (ulGetMainLcd()) // Bottom Screen
-	{
-		videoSetMode(MODE_3_3D);
-#endif
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
-		glMatrixMode(GL_MODELVIEW);
-		
-		glTranslate3f32(-scroll_x, 0, 0);
-		glTranslate3f32(0, -scroll_y, 0);
-		
-		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-		ulDrawImageXY(imgbg, 0, 0);
-		ulSetAlpha(UL_FX_ALPHA, 31, 1);
-		
-		if(!dont_draw)
-			canvas->draw();
-		
-		glLoadIdentity();
-		if(!dialog_active)
-		{
-			drawSideBar();
-			drawBottomBar();
-		}
-		else
-		{
-			drawBgBox();
-		}
-#ifdef DUALSCREEN
-	}
-	else // Top Screen
-	{
-		videoSetMode(MODE_3_3D |  DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrthof32(0, WORLD_WIDTH, WORLD_HEIGHT, 0, -4090, 1);
-		glMatrixMode(GL_MODELVIEW);
-					
-		ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-		ulDrawImageXY(imgbg, 0, 0);
-		ulSetAlpha(UL_FX_ALPHA, 31, 1);
-		if(!dont_draw)
-			canvas->draw();
-		if(state.draw_window)
-			canvas->drawScreenRect(scroll_x, scroll_y);
-	}
-#endif
-	
+    ulEndFrame();
+    ulStartDrawing2D();
+
+    if (ulGetMainLcd() || (!DUAL_SCREEN)) // Bottom Screen
+    {
+    	if(DUAL_SCREEN) {
+    		videoSetMode(MODE_3_3D);
+    	}
+
+    	canvas->draw();
+
+        glLoadIdentity();
+        if(!dialog_active) {
+            drawSideBar();
+            drawBottomBar();
+        } else {
+            drawBgBox();
+        }
+    }
+    else if(DUAL_SCREEN) // Top Screen
+    {
+        videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
+        canvas->draw();
+    }
+
 	ulEndDrawing();
-	
 	framedone = true;
-}
-
-void handleScrolling(void)
-{
-	touchPosition touch = touchReadXY();
-	
-	if( (keysheld & KEY_TOUCH) && ( (keysheld & KEY_L) || (keysheld & KEY_R) ) && (touch.px < 232) && (touch.py < 171) )
-	{
-		stylus_scrolling = true;
-		scroll_vx = (touch.px - 120) / 5;
-		scroll_vy = (touch.py - 90) / 5;
-	}
-	else
-	{
-		stylus_scrolling = false;
-
-		if( (keysheld & KEYS_SCROLL_RIGHT) && (scroll_vx < SCROLL_VMAX) )
-			scroll_vx ++;
-		else if( (keysheld & KEYS_SCROLL_LEFT) && (scroll_vx > -SCROLL_VMAX) )
-			scroll_vx --;
-		else if(scroll_vx > 0) {
-			scroll_vx --; if(scroll_vx < 0) scroll_vx = 0;
-		} else if(scroll_vx < 0) {
-			scroll_vx ++; if(scroll_vx > 0) scroll_vx = 0;
-		} if( (keysheld & KEYS_SCROLL_DOWN) && (scroll_vy < SCROLL_VMAX) )
-			scroll_vy ++;
-		else if( (keysheld & KEYS_SCROLL_UP) && (scroll_vy > -SCROLL_VMAX) )
-			scroll_vy --;
-		else if(scroll_vy > 0) {
-			scroll_vy --; if(scroll_vy < 0) scroll_vy = 0;
-		} else if(scroll_vy < 0) {
-			scroll_vy ++; if(scroll_vy > 0) scroll_vy = 0;
-		}
-	}
-	
-	if(scroll_vx != 0)
-	{
-		scroll_x += scroll_vx;
-
-		if(scroll_x < 0)
-			scroll_x = 0;
-		if(scroll_x > SCROLL_XMAX)
-			scroll_x = SCROLL_XMAX;
-	}
-
-	if(scroll_vy != 0)
-	{
-		scroll_y += scroll_vy;
-
-		if(scroll_y < 0)
-			scroll_y = 0;
-		if(scroll_y > SCROLL_YMAX)
-			scroll_y = SCROLL_YMAX;
-	}
 }
 
 void updateInput(void)
 {
-	// Check input
+	touchRead(&touch);
 	scanKeys();
-	keysdown |= keysDown();
-	keysup |= keysUp();
+	keysdown = keysDown();
+	keysup = keysUp();
 	keysheld = keysHeld();
 }
 
@@ -332,39 +241,43 @@ void VBlankHandler()
 	// And now for something completely ugly:
 	// Save the values of the div and sqrt registers, because the vblank might interrupt
 	// a division/sqrt operation
-	while(SQRT_CR & SQRT_BUSY);
-	while(DIV_CR & DIV_BUSY);
-	u16 divcr = DIV_CR;
-	int64 divnum64 = DIV_NUMERATOR64;
-	int64 divdenom64 = DIV_DENOMINATOR64;
+	while (REG_SQRTCNT & SQRT_BUSY) {
+	};
+	while (REG_DIVCNT & DIV_BUSY) {
+	};
+	u16 divcr = REG_DIVCNT;
+	int64 divnum64 = REG_DIV_NUMER;
+	int64 divdenom64 = REG_DIV_DENOM;
 
-	u16 sqrtcr = SQRT_CR;
-	int64 sqrtparam64 = SQRT_PARAM64;
+	u16 sqrtcr = REG_SQRTCNT;
+	int64 sqrtparam64 = REG_SQRT_PARAM;
 
 	mearureFps();
 	updateInput();
-	if(!dialog_active)
-		handleScrolling();
+
 	draw();
 
 	// Now restore the div/sqrt registers
-	DIV_CR = divcr;
-	while(DIV_CR & DIV_BUSY);
-	DIV_NUMERATOR64 = divnum64;
-	DIV_DENOMINATOR64 = divdenom64;
-	
-	SQRT_CR = sqrtcr;
-	while(SQRT_CR & SQRT_BUSY);
-	SQRT_PARAM64 = sqrtparam64;
-	
-	while(SQRT_CR & SQRT_BUSY);
-	while(DIV_CR & DIV_BUSY);
+	REG_DIVCNT = divcr;
+	while (REG_DIVCNT & DIV_BUSY) {
+	};
+	REG_DIV_NUMER = divnum64;
+	REG_DIV_DENOM = divdenom64;
+
+	REG_SQRTCNT = sqrtcr;
+	while (REG_SQRTCNT & SQRT_BUSY) {
+	};
+	REG_SQRT_PARAM = sqrtparam64;
+
+	while (REG_SQRTCNT & SQRT_BUSY) {
+	};
+	while (REG_DIVCNT & DIV_BUSY) {
+	};
 }
 
 void switchScreens(void)
 {
 	lcdSwap();
-	gui->switchScreens();
 }
 
 void drawMainBg()
@@ -373,29 +286,30 @@ void drawMainBg()
 	drawBottomBar();
 }
 
-void tbbgsidebarChanged(s8 item)
+void tbbgsidebarChanged(int item)
 {
-	if(!init)
-		CommandPlaySample(smp_click, 48, 255, 0);
-	
-	switch(item)
-	{
+	if (!init) {
+		soundPlaySample(sound_click_raw, SoundFormat_16Bit,
+				sound_click_raw_size, 16381, 127, 64, false, 0);
+	}
+
+	switch (item) {
 		//case 0: // Select
 		//	canvas->setPenMode(Canvas::pmNormal);
 		//	break;
-			
+
 		case 0: // Dynamic
-			canvas->setObjectMode(Canvas::omDynamic);
+			canvas->setObjectMode(TobKit::Canvas::omDynamic);
 			break;
-			
+
 		case 1: // Solid
-			canvas->setObjectMode(Canvas::omSolid);
+			canvas->setObjectMode(TobKit::Canvas::omSolid);
 			break;
-			
+
 		case 2: // Non-Solid
-			canvas->setObjectMode(Canvas::omNonSolid);
+			canvas->setObjectMode(TobKit::Canvas::omNonSolid);
 			break;
-			
+
 		default:
 			printf("Unhandled sidebar icon?!\n");
 			break;
@@ -404,47 +318,50 @@ void tbbgsidebarChanged(s8 item)
 
 void penModeChanged(s8 item)
 {
-	if(!init)
-		CommandPlaySample(smp_click, 48, 255, 0);
-	
-	switch(item)
-	{
+	if (!init) {
+		soundPlaySample(sound_click_raw, SoundFormat_16Bit,
+				sound_click_raw_size, 16381, 127, 64, false, 0);
+	}
+
+	switch (item) {
 		case -1:
-			canvas->setPenMode(Canvas::pmNormal);
+			canvas->setPenMode(TobKit::Canvas::pmNormal);
 			break;
-			
+
 		case 0:
-			canvas->setPenMode(Canvas::pmPolygon);
+			canvas->setPenMode(TobKit::Canvas::pmPolygon);
 			break;
-		
+
 		case 1:
-			canvas->setPenMode(Canvas::pmBox);
+			canvas->setPenMode(TobKit::Canvas::pmBox);
 			break;
-		
+
 		case 2:
-			canvas->setPenMode(Canvas::pmCircle);
+			canvas->setPenMode(TobKit::Canvas::pmCircle);
 			break;
-		
+
 		case 3:
-			canvas->setPenMode(Canvas::pmPin);
+			canvas->setPenMode(TobKit::Canvas::pmPin);
 			break;
-		
+
 		case 4:
-				canvas->setPenMode(Canvas::pmMove);
-				break;
-		
-		case 5:
-			canvas->setPenMode(Canvas::pmDelete);
+			canvas->setPenMode(TobKit::Canvas::pmMove);
 			break;
-			
+
+		case 5:
+			canvas->setPenMode(TobKit::Canvas::pmDelete);
+			break;
+
 		default:
-			printf("mäh.\n");
+			printf("maeh.\n");
+			break;
 	}
 }
 
 void startPlay(void)
 {
-	CommandPlaySample(smp_play, 48, 255, 0);
+	soundPlaySample(sound_play_raw, SoundFormat_16Bit, sound_play_raw_size,
+			16381, 127, 64, false, 0);
 	state.simulating = true;
 	btnplay->hide();
 	btnpause->show();
@@ -453,7 +370,8 @@ void startPlay(void)
 
 void pausePlay(void)
 {
-	CommandPlaySample(smp_play, 48, 255, 0);
+	soundPlaySample(sound_play_raw, SoundFormat_16Bit, sound_play_raw_size,
+			16381, 127, 64, false, 0);
 	state.simulating = false;
 	btnpause->hide();
 	btnplay->show();
@@ -462,127 +380,114 @@ void pausePlay(void)
 
 void stopPlay(void)
 {
-	dont_draw = true;
-	CommandPlaySample(smp_play, 48, 255, 0);
+	canvas->disableDrawing();
+	soundPlaySample(sound_play_raw, SoundFormat_16Bit, sound_play_raw_size,
+			16381, 127, 64, false, 0);
 	state.simulating = false;
 	world->reset(!dsmotion);
 	btnpause->hide();
 	btnplay->show();
 	canvas->stopSimulationMode();
-	dont_draw = false;
-}
-
-void clearGui(void)
-{
-	u16 col = RGB15(0,0,0);
-	u32 colcol = col | col << 16;
-	swiFastCopy(&colcol, main_vram, 192*256/2 | COPY_MODE_FILL);
-}
-
-void redrawGui(void)
-{
-	clearGui();
-	gui->draw();
+	canvas->enableDrawing();
 }
 
 void deleteMessageBox(void)
 {
-	gui->unregisterOverlayWidget(MAIN_SCREEN);
 	delete mb;
 	mb = 0;
-	redrawGui();
 }
 
 void zap(void)
 {
 	stopPlay();
-	dont_draw = true;
-	
-	while(world->getNThings() > 0)
-	{
+	canvas->disableDrawing();
+
+	while (world->getNThings() > 0) {
 		Thing *t = world->getThing(0);
 		world->remove(t);
 		delete t;
 	}
-	
-	CommandPlaySample(smp_del, 48, 255, 0);
+
+	soundPlaySample(sound_del_raw, SoundFormat_16Bit, sound_del_raw_size, 16381,
+			127, 64, false, 0);
 	deleteMessageBox();
-	
-	dont_draw = false;
+
+	canvas->enableDrawing();
 }
 
 void askZap(void)
 {
-	mb = new MessageBox(&main_vram, "destroy the world", 2, "yes", zap, "no", deleteMessageBox);
-	gui->registerOverlayWidget(mb, 0, MAIN_SCREEN);
-	mb->show();
-	mb->pleaseDraw();
+	mb = new TobKit::MessageBox(gui_main, "destroy the world", 2, "yes", "no");
+	mb->getSignal(0).connect(sigc::ptr_fun(zap));
+	mb->getSignal(1).connect(sigc::ptr_fun(deleteMessageBox));
 }
 
 inline u16 avgcol(u16 col1, u16 col2, u16 col3, u16 col4)
 {
-	return  ( (    (col1 & 31)      + (col2 & 31)       + (col3 & 31)       + (col4 & 31) )      / 4 )
-          | ( ( ( ((col1>>5) & 31)  + ((col2>>5) & 31)  + ((col3>>5) & 31)  + ((col4>>5) & 31))  / 4 ) << 5 )
-          | ( ( ( ((col1>>10) & 31) + ((col2>>10) & 31) + ((col3>>10) & 31) + ((col4>>10) & 31)) / 4 ) << 10);
+	return (((col1 & 31) + (col2 & 31) + (col3 & 31) + (col4 & 31)) / 4)
+			| (((((col1 >> 5) & 31) + ((col2 >> 5) & 31) + ((col3 >> 5) & 31)
+					+ ((col4 >> 5) & 31)) / 4) << 5)
+			| (((((col1 >> 10) & 31) + ((col2 >> 10) & 31) + ((col3 >> 10) & 31)
+					+ ((col4 >> 10) & 31)) / 4) << 10);
 }
 
 char *b64screenshot(void)
 {
-	bool draw_window_tmp = state.draw_window;
-	state.draw_window = false;
-	
+	bool draw_window_tmp = canvas->getDrawWindow();
+	canvas->setDrawWindow(false);
+
 	// Wait until a full frame (top and bootom screens) was drawn and
 	// capturing is finished
-	while(!ulGetMainLcd());
-	while(ulGetMainLcd());
-	while(!ulGetMainLcd());
-	while(ulGetMainLcd());
-	while(REG_CAPTURE & BIT(31));
-	
+	while (!ulGetMainLcd())
+		;
+	while (ulGetMainLcd())
+		;
+	while (!ulGetMainLcd())
+		;
+	while (ulGetMainLcd())
+		;
+	while (REG_DISPCAPCNT & BIT(31))
+		;
+
 	// Copy VRAM_C, becase this will take longer than a frame
-	u16 *screen = (u16*)malloc(sizeof(u16*)*256*192);
-	dmaCopy(VRAM_C, screen, 256*192*2);
-	
-	state.draw_window = draw_window_tmp;
-	
-	u16 linebuffer[4][64] = {{0}};
-	
-	u16 *screen_scaled = (u16*)malloc(2*64*48);
-	
+	u16 *screen = (u16*) malloc(sizeof(u16*) * 256 * 192);
+	dmaCopy(VRAM_C, screen, 256 * 192 * 2);
+
+	canvas->setDrawWindow(draw_window_tmp);
+
+	u16 linebuffer[4][64] = { { 0 } };
+
+	u16 *screen_scaled = (u16*) malloc(2 * 64 * 48);
+
 	// Scale the image using some cheap box filter. Looks decent IMO.
 	int bufline = 0;
-	for(int y=0; y<192; ++y)
-	{
-		for(int x=0; x<64; ++x)
-		{
-			linebuffer[bufline][x] = avgcol( screen[256*y+(4*x)+0],
-					screen[256*y+(4*x)+1],
-					screen[256*y+(4*x)+2],
-					screen[256*y+(4*x)+3]);
+	for (int y = 0; y < 192; ++y) {
+		for (int x = 0; x < 64; ++x) {
+			linebuffer[bufline][x] = avgcol(screen[256 * y + (4 * x) + 0],
+					screen[256 * y + (4 * x) + 1],
+					screen[256 * y + (4 * x) + 2],
+					screen[256 * y + (4 * x) + 3]);
 		}
-		
+
 		bufline++;
-		
-		if(bufline == 4)
-		{
-			for(int x=0; x<64; ++x)
-			{
-				screen_scaled[64*(y/4)+x] = avgcol( linebuffer[0][x],
-												linebuffer[1][x],
-												linebuffer[2][x],
-												linebuffer[3][x]) | BIT(15);
+
+		if (bufline == 4) {
+			for (int x = 0; x < 64; ++x) {
+				screen_scaled[64 * (y / 4) + x] = avgcol(linebuffer[0][x],
+						linebuffer[1][x], linebuffer[2][x],
+						linebuffer[3][x]) | BIT(15);
 			}
-			
+
 			bufline = 0;
 		}
 	}
-	
+
 	char *b64screen;
-	b64encode((u8*)screen_scaled, 2*64*48, &b64screen);
-	
+	b64encode((u8*) screen_scaled, 2 * 64 * 48, &b64screen);
+
 	free(screen);
 	free(screen_scaled);
-	
+
 	return b64screen;
 }
 
@@ -592,38 +497,29 @@ void save(void)
 #ifndef SCLITE
 	thumbnail = b64screenshot();
 #endif
-	world->save(current_filename, thumbnail);
+	world->save(current_filename.c_str(), thumbnail);
 	free(thumbnail);
 }
 
-void showTypewriter(const char *prompt, const char *str, void (*okCallback)(void), void (*cancelCallback)(void))
+void showTypewriter(const char *prompt, const char *str,
+		void (*okCallback)(void), void (*cancelCallback)(void))
 {
 	dialog_active = true;
-	
-	clearGui();
-	
-	tw = new Typewriter(prompt, (u16*)CHAR_BASE_BLOCK(1),
-		(u16*)SCREEN_BASE_BLOCK(12), 3, &main_vram, &BG1_X0, &BG1_Y0);
-	
-	tw->setText(str);
-	gui->registerOverlayWidget(tw, KEY_LEFT|KEY_RIGHT, MAIN_SCREEN);
-	if(okCallback!=0) {
-		tw->registerOkCallback(okCallback);
+
+	tw = new TobKit::Typewriter(gui_main, prompt, str);
+
+	if (okCallback != 0) {
+		tw->signal_ok.connect(sigc::ptr_fun(okCallback));
 	}
-	if(cancelCallback != 0) {
-		tw->registerCancelCallback(cancelCallback);
+	if (cancelCallback != 0) {
+		tw->signal_cancel.connect(sigc::ptr_fun(cancelCallback));
 	}
 	tw->show();
-	tw->pleaseDraw();
 }
 
 void deleteTypewriter(void)
 {
-	gui->unregisterOverlayWidget(MAIN_SCREEN);
 	delete tw;
-	
-	redrawGui();
-	
 	dialog_active = false;
 }
 
@@ -635,582 +531,522 @@ void overwriteFile(void)
 
 void handleSaveDialogOk(void)
 {
-	char *text = tw->getText();
-	
-	// Append extension if neccessary
-	if(strcmp(text,"") != 0)
-	{
-		char *name;
-		if( strcmp(text+strlen(text)-3, ".pp") != 0 ) {
-			// Append extension
-			name = (char*)malloc(strlen(text)+3+1);
-			strcpy(name,text);
-			strcpy(name+strlen(name),".pp");
+	std::string text = tw->getText();
+
+	if (text != "") {
+		std::string name;
+		// Append extension if neccessary
+		if (text.substr(text.length() - 3, 3) != ".pp") {
+			name = text + ".pp";
 		} else {
 			// Leave as is
-			name = (char*)malloc(strlen(text)+1);
-			strcpy(name,text);
+			name = text;
 		}
 
 		deleteTypewriter();
-		
-		printf("Saving %s\n", name);
-		
-		strncpy(current_filename, name, 256);
-		
-		// Check if the file already exists
-		char* fullname = (char*)calloc(1,256);
-		sprintf(fullname, "%s/%s", "pocketphysics/sketches", name);
-		
-		FILE* f = fopen(fullname,"r");
 
-		if( f != 0 )
-		{
-			mb = new MessageBox(&main_vram, "overwrite file", 2, "yes", overwriteFile, "no", deleteMessageBox);
-			gui->registerOverlayWidget(mb, 0, MAIN_SCREEN);
-			mb->show();
-			mb->pleaseDraw();
-		}
-		else
-		{
+		printf("Saving %s\n", name.c_str());
+
+		current_filename = name;
+
+		// Check if the file already exists
+		std::string fullname = "pocketphysics/sketches/" + name;
+		FILE* f = fopen(fullname.c_str(), "r");
+		if (f != 0) {
+			mb = new TobKit::MessageBox(gui_main, "Overwrite file?", 2, "yes",
+					"no");
+			mb->getSignal(0).connect(sigc::ptr_fun(overwriteFile));
+			mb->getSignal(1).connect(sigc::ptr_fun(deleteMessageBox));
+		} else {
 			fclose(f);
 			save();
 		}
-		
-		free(fullname);
-		free(name);
 	}
 }
 
 void deleteLoadDialog(void)
 {
-	gui->unregisterOverlayWidget(MAIN_SCREEN);
 	delete load_dialog;
-
-	redrawGui();
-
 	dialog_active = false;
 }
 
 void handleLoadDialogOk(void)
 {
-	printf("Loading %s\n", load_dialog->getFilename());
-	world->load(load_dialog->getFilename());
-	strcpy(current_filename, load_dialog->getFilename());
+	printf("Loading %s\n", load_dialog->getFilename().c_str());
+	world->load(load_dialog->getFilename().c_str());
+	current_filename = load_dialog->getFilename();
 	deleteLoadDialog();
 }
 
 void showLoadDialog(void)
 {
-	CommandPlaySample(smp_play, 48, 255, 0);
-	
-	load_dialog = new PPLoadDialog(&main_vram);
+	soundPlaySample(sound_play_raw, SoundFormat_16Bit, sound_play_raw_size,
+			16381, 127, 64, false, 0);
+
+	load_dialog = new TobKit::PPLoadDialog(gui_main);
 	dialog_active = true;
-	clearGui();
-	
-	gui->registerOverlayWidget(load_dialog, 0, MAIN_SCREEN);
-	load_dialog->registerOkCallback(handleLoadDialogOk);
-	load_dialog->registerCancelCallback(deleteLoadDialog);
-	
+
+	load_dialog->signal_ok.connect(sigc::ptr_fun(handleLoadDialogOk));
+	load_dialog->signal_cancel.connect(sigc::ptr_fun(deleteLoadDialog));
+
 	load_dialog->show();
 }
 
 void showSaveDialog(void)
 {
-	CommandPlaySample(smp_play, 48, 255, 0);
-	
-	showTypewriter("save as", current_filename, handleSaveDialogOk, deleteTypewriter);
+	soundPlaySample(sound_play_raw, SoundFormat_16Bit, sound_play_raw_size,
+			16381, 127, 64, false, 0);
+
+	showTypewriter("save as", current_filename.c_str(), handleSaveDialogOk,
+			deleteTypewriter);
 }
 
 void setupGui(void)
 {
-	gui = new GUI;
-	gui->setTheme(theme);
-	
 	// <Side Bar>
-		tbbgsidebar = new ToggleBitButton::ToggleBitButtonGroup();
-		
-		//tbbselect = new ToggleBitButton(233, 22, 22, 19, &main_vram, icon_select_raw, 18, 15, 1, 2, tbbgsidebar);
-		tbbdynamic = new ToggleBitButton(233, 1, 22, 19, &main_vram, icon_dynamic_raw, 18, 15, 1, 2, tbbgsidebar);
-		tbbsolid = new ToggleBitButton(233, 21, 22, 19, &main_vram, icon_solid_raw, 18, 15, 1, 2, tbbgsidebar);
-		//tbbnonsolid = new ToggleBitButton(233, 41, 22, 19, &main_vram, icon_nonsolid_raw, 18, 15, 1, 2, tbbgsidebar);
-		
-		tbbgsidebar->registerChangeCallback(tbbgsidebarChanged);
-		
-		btnload = new BitButton(233, 101, 22, 19, &main_vram, icon_load_raw, 18, 15, 2, 1);
-		btnload->registerPushCallback(showLoadDialog);
-		
-		btnsave = new BitButton(233, 121, 22, 19, &main_vram, icon_save_raw, 18, 15, 2, 1);
-		btnsave->registerPushCallback(showSaveDialog);
-		
-		btnstop = new BitButton(233, 152, 22, 19, &main_vram, icon_stop_raw, 12, 12, 5, 1);
-		btnstop->registerPushCallback(stopPlay);
-		
-		btnplay = new BitButton(233, 172, 22, 19, &main_vram, icon_play_raw, 12, 12, 5, 1);
-		btnplay->registerPushCallback(startPlay);
-		
-		btnpause = new BitButton(233, 172, 22, 19, &main_vram, icon_pause_raw, 12, 12, 5, 1);
-		btnpause->registerPushCallback(pausePlay);
-		
-		//gui->registerWidget(tbbselect, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbdynamic, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbsolid, 0, MAIN_SCREEN);
-		//gui->registerWidget(tbbnonsolid, 0, MAIN_SCREEN);
-#ifndef DEBUG
-		if(fat_ok)
-		{
-#endif
-			gui->registerWidget(btnload, 0, MAIN_SCREEN);
-			gui->registerWidget(btnsave, 0, MAIN_SCREEN);
-#ifndef DEBUG
-		}
-#endif
-		gui->registerWidget(btnpause, 0, MAIN_SCREEN);
-		gui->registerWidget(btnplay, 0, MAIN_SCREEN);
-		gui->registerWidget(btnstop, 0, MAIN_SCREEN);
-	// </Side Bar>
-		
-	// <Bottom Bar>
-		tbbgobjects = new ToggleBitButton::ToggleBitButtonGroup();
-		
-		tbbpolygon = new ToggleBitButton(1, 172, 22, 19, &main_vram, icon_polygon_raw, 18, 15, 2, 2, tbbgobjects);
-		tbbbox = new ToggleBitButton(24, 172, 22, 19, &main_vram, icon_box_raw, 18, 15, 2, 2, tbbgobjects);
-		tbbcircle = new ToggleBitButton(47, 172, 22, 19, &main_vram, icon_circle_raw, 18, 15, 2, 2, tbbgobjects);
-		tbbpin = new ToggleBitButton(70, 172, 22, 19, &main_vram, icon_pin_raw, 18, 15, 2, 2, tbbgobjects);
-		
-		tbbmove = new ToggleBitButton(152, 172, 22, 19, &main_vram, icon_move_raw, 18, 15, 2, 2, tbbgobjects);
-		tbbdelete = new ToggleBitButton(175, 172, 22, 19, &main_vram, icon_delete_raw, 18, 15, 2, 2, tbbgobjects);
-		
-		
-		tbbgobjects->registerChangeCallback(penModeChanged);
-		
-		buttonzap = new BitButton(198, 172, 22, 19, &main_vram, icon_zap_raw, 18, 15, 2, 2);
-		buttonzap->registerPushCallback(askZap);
-		
-		gui->registerWidget(tbbpolygon, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbbox, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbcircle, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbpin, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbmove, 0, MAIN_SCREEN);
-		gui->registerWidget(tbbdelete, 0, MAIN_SCREEN);
-		gui->registerWidget(buttonzap, 0, MAIN_SCREEN);
-	// </Bottom Bar>
-		
-	gui->showAll();
-	btnpause->hide();
-	gui->draw();
-	
-	tbbgsidebar->setActive(0);
-	tbbgobjects->setActive(0);
-}
+	tbbgsidebar = new TobKit::AlternativeButton::AlternativeButtonGroup();
 
-bool onCanvas(int px, int py)
-{
-	return ((px>=0)&&(px<231)&&(py>=0)&&(py<170))&&(mb==0);
+	//tbbselect = new ToggleBitButton(233, 22, 22, 19, &main_vram, icon_select_raw, 18, 15, 1, 2, tbbgsidebar);
+	tbbdynamic = new TobKit::ToggleBitButton(gui_main, icon_dynamic_raw, 233, 1,
+			tbbgsidebar, 22, 19, 18, 15, 1, 2);
+	//
+	tbbsolid = new TobKit::ToggleBitButton(gui_main, icon_solid_raw, 233, 21,
+			tbbgsidebar, 22, 19, 18, 15, 1, 2);
+
+	//tbbnonsolid = new ToggleBitButton(233, 41, 22, 19, &main_vram, icon_nonsolid_raw, 18, 15, 1, 2, tbbgsidebar);
+
+	tbbgsidebar->signal_changed.connect(sigc::ptr_fun(tbbgsidebarChanged));
+
+	btnstop = new TobKit::BitButton(gui_main, icon_stop_raw, 233, 152, 22, 19,
+			12, 12, 5, 1);
+	btnstop->signal_pushed.connect(sigc::ptr_fun(stopPlay));
+
+	btnplay = new TobKit::BitButton(gui_main, icon_play_raw, 233, 172, 22, 19,
+			12, 12, 5, 1);
+	btnplay->signal_pushed.connect(sigc::ptr_fun(startPlay));
+
+	btnpause = new TobKit::BitButton(gui_main, icon_pause_raw, 233, 172, 22, 19,
+			12, 12, 5, 1, 0, false);
+	btnpause->signal_pushed.connect(sigc::ptr_fun(pausePlay));
+
+#ifndef DEBUG
+	if(fat_ok)
+	{
+#endif
+	btnload = new TobKit::BitButton(gui_main, icon_load_raw, 233, 101, 22, 19,
+			18, 15, 2, 1);
+	btnload->signal_pushed.connect(sigc::ptr_fun(showLoadDialog));
+
+	btnsave = new TobKit::BitButton(gui_main, icon_save_raw, 233, 121, 22, 19,
+			18, 15, 2, 1);
+	btnsave->signal_pushed.connect(sigc::ptr_fun(showSaveDialog));
+#ifndef DEBUG
+}
+#endif
+	// </Side Bar>
+
+	// <Bottom Bar>
+	tbbgobjects = new TobKit::AlternativeButton::AlternativeButtonGroup();
+
+	tbbpolygon = new TobKit::ToggleBitButton(gui_main, icon_polygon_raw, 1, 172,
+			tbbgobjects, 22, 19, 18, 15, 2, 2);
+	tbbbox = new TobKit::ToggleBitButton(gui_main, icon_box_raw, 24, 172,
+			tbbgobjects, 22, 19, 18, 15, 2, 2);
+	tbbcircle = new TobKit::ToggleBitButton(gui_main, icon_circle_raw, 47, 172,
+			tbbgobjects, 22, 19, 18, 15, 2, 2);
+	tbbpin = new TobKit::ToggleBitButton(gui_main, icon_pin_raw, 70, 172,
+			tbbgobjects, 22, 19, 18, 15, 2, 2);
+
+	tbbmove = new TobKit::ToggleBitButton(gui_main, icon_move_raw, 152, 172,
+			tbbgobjects, 22, 19, 18, 15, 2, 2);
+	tbbdelete = new TobKit::ToggleBitButton(gui_main, icon_delete_raw, 175, 172,
+			tbbgobjects, 22, 19, 18, 15, 2, 2);
+
+	tbbgobjects->signal_changed.connect(sigc::ptr_fun(penModeChanged));
+
+	buttonzap = new TobKit::BitButton(gui_main, icon_zap_raw, 198, 172, 22, 19,
+			18, 15, 2, 2);
+	buttonzap->signal_pushed.connect(sigc::ptr_fun(askZap));
+	// </Bottom Bar>
+
+	tbbgsidebar->setChecked(0);
+	tbbgobjects->setChecked(0);
 }
 
 void calibrate_motion(void)
 {
-	  iprintf("OK, calibrating\n");
-	  
-	  s32 xmean=0, ymean=0;
-	  for(int i=0;i<30;++i)
-	  {
-	    xmean += motion_read_x(); // this returns a value between 0 and 4095
-	    ymean += motion_read_y(); // this returns a value between 0 and 4095
-	    swiWaitForVBlank();
-	  }
-	  xmean /= 30;
-	  ymean /= 30;
-	  
-	  motion_x_offset = xmean;
-	  motion_y_offset = ymean;
-	  
-	  
-	  printf("x %d y %d\n", motion_x_offset, motion_y_offset);
-	  printf("Done\n");
-	  
-	  deleteMessageBox();
+	iprintf("OK, calibrating\n");
+
+	s32 xmean = 0, ymean = 0;
+	for (int i = 0; i < 30; ++i) {
+		xmean += motion_read_x(); // this returns a value between 0 and 4095
+		ymean += motion_read_y(); // this returns a value between 0 and 4095
+		swiWaitForVBlank();
+	}
+	xmean /= 30;
+	ymean /= 30;
+
+	motion_x_offset = xmean;
+	motion_y_offset = ymean;
+
+	printf("x %d y %d\n", motion_x_offset, motion_y_offset);
+	printf("Done\n");
+
+	deleteMessageBox();
 }
 
 void request_calibration()
 {
-	mb = new MessageBox(&main_vram, "please put the ds on a table", 1, "calibrate dsmotion!", calibrate_motion);
-	gui->registerOverlayWidget(mb, 0, MAIN_SCREEN);
-	mb->show();
-	mb->pleaseDraw();
+	mb = new TobKit::MessageBox(gui_main, "please put the ds on a table", 1,
+			"calibrate dsmotion!");
+	mb->getSignal(0).connect(sigc::ptr_fun(calibrate_motion));
 }
 
 void handleInput(void)
 {
-	touchPosition touch = touchReadXY();
-	
 	// Prevent drawing while scrolling with pen
-	if(keysdown & (KEY_L | KEY_R))
-	{
-		canvas->penUp(touch.px, touch.py);
-		CommandStopSample(0);
-	}
-	
-	if(keysdown && dialog_active) // Send keys to the gui (for left/right navigating in keyboard)
-	{
-		gui->buttonPress(keysdown);
-	}
-	
-	if(keysup && dialog_active)
-	{
-		gui->buttonRelease(keysup);
-	}
-	
-	if(keysdown & KEY_SELECT)
-		state.draw_window = !state.draw_window;
-	
-	// clear keysdown
-	keysdown = 0;
+	/*
+	 if(keysdown & (KEY_L | KEY_R)) {
+	 canvas->penUp(touch.px, touch.py);
+	 soundKill(sample_pen_id);
+	 }
 
-	if(!touch_was_down && PEN_DOWN)
-	{
-		got_good_pen_reading = 0; // Wait one frame until passing the event
-		lastx = touch.px;
-		lasty = touch.py;
-		touch_was_down = 1;
+	 if(keysdown && dialog_active) { // Send keys to the gui (for left/right navigating in keyboard)
+	 gui_main->buttonPress(keysdown);
+	 }
+
+	 if(keysup && dialog_active)	{
+	 gui_main->buttonRelease(keysup);
+	 }
+	 */
+	if (keysdown & KEY_SELECT) {
+		canvas->setDrawWindow(!canvas->getDrawWindow());
 	}
-	else
-	{
-		if(touch_was_down && !PEN_DOWN) // PenUp
-		{
-			canvas->penUp(touch.px + scroll_x, touch.py + scroll_y);
-			gui->penUp(touch.px, touch.py);
-			CommandStopSample(0);
-			
-			touch_was_down = 0;
-		}
-		else if(touch_was_down && PEN_DOWN)
-		{
-			if(!got_good_pen_reading) // PenDown
-			{
-				if(!stylus_scrolling && onCanvas(touch.px, touch.py) && !dialog_active)
-				{
-					CommandPlaySample(smp_crayon, 48, 255, 0);
-					canvas->penDown(touch.px + scroll_x, touch.py + scroll_y);
-				}
-				else
-					gui->penDown(touch.px, touch.py);		
-				
-				got_good_pen_reading = 1;
-			}
-			
-			if((abs(touch.px - lastx)>0) || (abs(touch.py - lasty)>0)) // PenMove
-			{
-				if(onCanvas(touch.px, touch.py) && !dialog_active)
-					canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
-				else
-					gui->penMove(touch.px, touch.py);
-				
-				lastx = touch.px;
-				lasty = touch.py;
-			}
-		}
-	}
+
+	gui_main->handleInput(keysdown, keysup, keysheld, touch);
+	/*
+	 if(!touch_was_down && PEN_DOWN)	{
+	 got_good_pen_reading = 0; // Wait one frame until passing the event
+	 lastx = touch.px;
+	 lasty = touch.py;
+	 touch_was_down = 1;
+	 }
+	 else
+	 {
+	 if(touch_was_down && !PEN_DOWN) // PenUp
+	 {
+	 canvas->penUp(touch.px + scroll_x, touch.py + scroll_y);
+	 gui->penUp(touch.px, touch.py);
+	 soundKill(sample_pen_id);
+
+	 touch_was_down = 0;
+	 }
+	 else if(touch_was_down && PEN_DOWN)
+	 {
+	 if(!got_good_pen_reading) // PenDown
+	 {
+	 if(!stylus_scrolling && onCanvas(touch.px, touch.py) && !dialog_active)
+	 {
+	 sample_pen_id = soundPlaySample(sound_pen_raw, SoundFormat_16Bit, sound_pen_raw_size, 16381, 127, 64, true, sound_pen_raw_size/10);
+	 canvas->penDown(touch.px + scroll_x, touch.py + scroll_y);
+	 } else {
+	 gui->penDown(touch.px, touch.py);
+	 }
+
+	 got_good_pen_reading = 1;
+	 }
+
+	 if((abs(touch.px - lastx)>0) || (abs(touch.py - lasty)>0)) // PenMove
+	 {
+	 if(onCanvas(touch.px, touch.py) && !dialog_active)
+	 canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
+	 else
+	 gui->penMove(touch.px, touch.py);
+
+	 lastx = touch.px;
+	 lasty = touch.py;
+	 }
+	 }
+	 }
+	 */
 
 	// DSMotion shortcut for swappers
-	if( (keysheld & KEY_L) && (keysheld & KEY_R) )
-	{
-		if(motion_init() != 0)
-		{
+	if ((keysheld & KEY_L) && (keysheld & KEY_R)) {
+		if (motion_init() != 0) {
 			dsmotion = true;
 			world->reset(false);
-			
+
 			request_calibration();
-		}
-		else
-		{
+		} else {
 			dsmotion = false;
 			world->reset(true);
-			
+
 			iprintf("Get a DSMotion. They are fun!\n");
 		}
 	}
-	
+
 	passed_frames = 0;
-	
-	// Special case: User holds down the pen and scrolls => generate penmove event
-	if( ( (scroll_vx != 0) || (scroll_vy != 0) )
-			&& (touch_was_down && PEN_DOWN)
-			&& (onCanvas(touch.px, touch.py) ) )
-		canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
-}
 
-void loadSamples()
-{
-	u32 n_samples = sound_pen_raw_size/2;
-	u32 loopstart = n_samples / 10;iprintf("%d\n",__LINE__);
-	smp_crayon = new Sample((void*)sound_pen_raw, n_samples, 16381);iprintf("%d\n",__LINE__);
-	smp_crayon->setLoop(PING_PONG_LOOP);iprintf("%d\n",__LINE__);
-	smp_crayon->setLoopStartAndLength(loopstart, n_samples - loopstart);iprintf("%d\n",__LINE__);
-	iprintf("%d\n",__LINE__);
-	smp_play = new Sample((void*)sound_play_raw, sound_play_raw_size/2, 16381);
-	smp_click = new Sample((void*)sound_click_raw, sound_click_raw_size/2, 16381);
-	smp_del = new Sample((void*)sound_del_raw, sound_del_raw_size/2, 16381);
+	/*
+	 * TODO: move this to canvas
+	 // Special case: User holds down the pen and scrolls => generate penmove event
+	 if( ( (scroll_vx != 0) || (scroll_vy != 0) )
+	 && (touch_was_down && (keysdown & KEY_TOUCH))
+	 && (onCanvas(touch.px, touch.py) ) )
+	 canvas->penMove(touch.px + scroll_x, touch.py + scroll_y);
+	 */
 }
+/*
+ void loadSamples()
+ {
+ u32 n_samples = sound_pen_raw_size/2;
+ u32 loopstart = n_samples / 10;
+ smp_crayon = new Sample((void*)sound_pen_raw, n_samples, 16381);
+ smp_crayon->setLoop(PING_PONG_LOOP);
+ smp_crayon->setLoopStartAndLength(loopstart, n_samples - loopstart);
 
+ smp_play = new Sample((void*)sound_play_raw, sound_play_raw_size/2, 16381);
+ smp_click = new Sample((void*)sound_click_raw, sound_click_raw_size/2, 16381);
+ smp_del = new Sample((void*)sound_del_raw, sound_del_raw_size/2, 16381);
+ }
+ */
 
 void updateGravity()
 {
 	int Xaccel = motion_read_x(); // this returns a value between 0 and 4095
 	int Yaccel = motion_read_y(); // this returns a value between 0 and 4095
-	
-	float32 xgrav = (float)((Xaccel - motion_x_offset) * 5) / 1638.0f;
-	float32 ygrav = (float)((Yaccel - motion_y_offset) * 5) / 1638.0f;
-	
+
+	float32 xgrav = (float) ((Xaccel - motion_x_offset) * 5) / 1638.0f;
+	float32 ygrav = (float) ((Yaccel - motion_y_offset) * 5) / 1638.0f;
+
 	world->setGravity(-xgrav, ygrav);
 }
 
 void showSplash(void)
 {
-	UL_IMAGE *imgpp = ulLoadImageFilePNG((const char*)pocketphysics_png, (int)pocketphysics_png_size, UL_IN_VRAM, UL_PF_PAL8);
-	for(int i=0;i<60;++i)
-	{
-		BLEND_Y = 31-i/2;
+	videoSetModeSub(MODE_5_2D);
+
+	UL_IMAGE *imgpp = ulLoadImageFilePNG((const char*) pocketphysics_png,
+			(int) pocketphysics_png_size, UL_IN_VRAM, UL_PF_PAL8);
+	for (int i = 0; i < 60; ++i) {
+		REG_BLDY = 31 - i / 2;
 		ulStartDrawing2D();
-		
+
 		ulDrawImageXY(imgpp, 0, 0);
-		
+
 		ulEndDrawing();
 		ulSyncFrame();
 	}
 	scanKeys();
-	while(!keysDown())
-	{
-		BLEND_Y = 0;
+	while (!keysDown()) {
+		REG_BLDY = 0;
 		ulStartDrawing2D();
-				
+
 		ulDrawImageXY(imgpp, 0, 0);
-		
+
 		ulEndDrawing();
 		ulSyncFrame();
-		
+
 		scanKeys();
 	}
-	for(int i=60;i>0;--i)
-	{
-		BLEND_Y = 31-i/2;
+	for (int i = 60; i > 0; --i) {
+		REG_BLDY = 31 - i / 2;
 		ulStartDrawing2D();
-		
+
 		ulDrawImageXY(imgpp, 0, 0);
-		
+
 		ulEndDrawing();
 		ulSyncFrame();
 	}
+	ulDeleteImage(imgpp);
 }
 
+// TODO: Instead of copying code from draw, fade in by just tweaking te blend registers while vblank is alrady running
 void fadeIn()
 {
-	for(int i=0;i<60;++i)
-	{
-		ulSyncFrame();
-		
-		BLEND_Y = 31-i/2;
-		
-		ulStartDrawing2D();
-	
-		if (ulGetMainLcd()) // Bottom Screen
-		{
-			videoSetMode(MODE_3_3D);
-	
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
-			glMatrixMode(GL_MODELVIEW);
-			
-			glTranslate3f32(-scroll_x, 0, 0);
-			glTranslate3f32(0, -scroll_y, 0);
-			
-			ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-			ulDrawImageXY(imgbg, 0, 0);
-			ulSetAlpha(UL_FX_ALPHA, 31, 1);
-			
-			canvas->draw();
-			
-			glLoadIdentity();
-			drawSideBar(); drawBottomBar();
-	
-		}
-		else // Top Screen
-		{
-			videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrthof32(0, WORLD_WIDTH, WORLD_HEIGHT, 0, -4090, 1);
-			glMatrixMode(GL_MODELVIEW);
-						
-			ulSetAlpha(UL_FX_DEFAULT, 0, 0);
-			
-			ulDrawImageXY(imgbg, 0, 0);
-			
-			ulSetAlpha(UL_FX_ALPHA, 31, 1);
-			
-			canvas->draw();
-			canvas->drawScreenRect(scroll_x, scroll_y);
-		}
-	
-		
-		ulEndDrawing();
-	}
-	BLEND_Y = 0;
-	SUB_BLEND_Y = 0;
+//	for (int i = 0; i < 60; ++i) {
+//		ulSyncFrame();
+//
+//		REG_BLDY = 31 - i / 2;
+//
+//		ulStartDrawing2D();
+//
+//		if (ulGetMainLcd()) // Bottom Screen
+//		{
+//			videoSetMode(MODE_3_3D);
+//
+//			glMatrixMode(GL_PROJECTION);
+//			glLoadIdentity();
+//			glOrthof32(0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, -4090, 1);
+//			glMatrixMode(GL_MODELVIEW);
+//
+//			glTranslate3f32(-scroll_x, 0, 0);
+//			glTranslate3f32(0, -scroll_y, 0);
+//
+//			ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+//			ulDrawImageXY(imgbg, 0, 0);
+//			ulSetAlpha(UL_FX_ALPHA, 31, 1);
+//
+//			canvas->draw();
+//
+//			glLoadIdentity();
+//			drawSideBar();
+//			drawBottomBar();
+//
+//		} else // Top Screen
+//		{
+//			videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+//			glMatrixMode(GL_PROJECTION);
+//			glLoadIdentity();
+//			glOrthof32(0, WORLD_WIDTH, WORLD_HEIGHT, 0, -4090, 1);
+//			glMatrixMode(GL_MODELVIEW);
+//
+//			ulSetAlpha(UL_FX_DEFAULT, 0, 0);
+//
+//			ulDrawImageXY(imgbg, 0, 0);
+//
+//			ulSetAlpha(UL_FX_ALPHA, 31, 1);
+//
+//			canvas->draw();
+//			canvas->drawScreenRect(scroll_x, scroll_y);
+//		}
+//
+//		ulEndDrawing();
+//	}
+//	REG_BLDY = 0;
+//	REG_BLDY_SUB = 0;
 }
 
 int main()
 {
-	ulInit(UL_INIT_ALL);
-	
+	ulInit(UL_INIT_LIBONLY);
 	ulInitGfx();
-	
+
+	soundEnable();
+
 #ifdef DEBUG
 	defaultExceptionHandler();
 #endif
-	
-	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
+
+	// Video configuration of Pocket Physics:
+	//
+	// VRAM:
+	//       Bank  Screen  Mapping     From    Use
+	//
+	//       A     Main    Texture     uLib    3D
+	//       B     Main    0x06000000  TobKit  GUI
+	//       C     Sub     0x06000000  uLib    Capture (dual-screen 3D)
+	//       D     Sub     Sprite      uLib    Capture (dual-screen 3D)
+	//
+	// Backgrounds:
+	//
+	//   Main Screen: Mode_3_3D
+	//
+	//     BG  Mode            Use
+	//     0   3D
+	//     1   Tiles           Console
+	//     3   ERB 16 Bit BMP  TobKit GUI
+	//
+	//   Sub Screen: Mode_5_2D
+	//
+	//     BG       Mode            Use
+	//     2        ERB 16 Bit BMP  Not Sure
+	//     Sprites                  3D on both screens, showing captured image using 4 sprites
+
+	TobKit::Theme theme_trans_bg;
+	theme_trans_bg.col_bg = 0; // Make the background transparent
+
+	// Sets up main screen to MODE_3_2D and sets up bg layer 3 in 16 bit bitmap mode
+	gui_main = TobKit::GUI::instance(TobKit::MAIN_SCREEN, theme_trans_bg);
+
 #ifdef DEBUG
-	videoSetModeSub(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG2_ACTIVE);
-#else
-	videoSetModeSub(MODE_5_2D | DISPLAY_BG2_ACTIVE);
-#endif
-	vramSetBankB(VRAM_B_MAIN_BG_0x06000000);
-	vramSetBankC(VRAM_C_SUB_BG_0x06200000);
-	
-	// Main BG0: 3D
-	BG0_CR = BG_PRIORITY(2);
-	
-	// Main BG3: ERB
-	BG3_CR = BG_BMP16_256x256 | BG_BMP_BASE(2) | BG_PRIORITY(1);
-	BG3_XDX = 1 << 8;
-	BG3_XDY = 0;
-	BG3_YDX = 0;
-	BG3_YDY = 1 << 8;
-	
-	// Main BG1: Keyboard
-	BG1_CR = BG_COLOR_16 | BG_32x32 | BG_MAP_BASE(12) | BG_TILE_BASE(1);
-	
-	// Sub BG0: Text
-	SUB_BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_PRIORITY(0);
-	BG_PALETTE_SUB[255] = RGB15(31,31,31); //by default font will be rendered with color 255
-	consoleInitDefault((u16*)SCREEN_BASE_BLOCK_SUB(4), (u16*)CHAR_BASE_BLOCK_SUB(0), 16);
-	
-	// Sub BG2: ERB
-	SUB_BG2_CR = BG_BMP16_256x256 | BG_BMP_BASE(2) | BG_PRIORITY(1);
-	SUB_BG2_XDX = 1 << 8;
-	SUB_BG2_XDY = 0;
-	SUB_BG2_YDX = 0;
-	SUB_BG2_YDY = 1 << 8;
-	
-	BLEND_CR = BLEND_FADE_BLACK | BLEND_SRC_BG0 | BLEND_SRC_BG3;
-	SUB_BLEND_CR = BLEND_FADE_BLACK | BLEND_SRC_BG2;
-	
-#ifdef DEBUG
+	// Sets up sub screen bg layer 1 in console mode
+	gui_main->setupConsole();
 	printf("Pocket Physics Debug build\n");
 #endif
-	// Gosh, this stuff must have been coded in the middle ages! Pull out ntxm and tobkit and use their lib versions.
-	// Sheesh!
-	iprintf("%d\n",__LINE__);
-	lcdMainOnBottom();
-	iprintf("%d\n",__LINE__);
-	CommandInit();
-	iprintf("%d\n",__LINE__);
-	loadSamples();
+
 #ifndef DEBUG
+	videoSetMode(MODE_3_3D | DISPLAY_BG3_ACTIVE);
+	REG_BLDCNT = BLEND_FADE_BLACK | BLEND_SRC_BG0 | BLEND_SRC_BG3;
+	REG_BLDCNT_SUB = BLEND_FADE_BLACK | BLEND_SRC_BG2;
 	showSplash();
 #endif
+
+	if (DUAL_SCREEN) {
+		ulInitDualScreenMode();
+	}
+	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
+	bgSetPriority(0, 2); // Put the 3D layer in the background
+	bgSetPriority(3, 1); // Put the 2D layer in the foreground
+	bgSetPriority(1, 0); // Put the tile layer (keyboard) on top
+
+	lcdMainOnBottom();
+
 	world = new World(WORLD_WIDTH, WORLD_HEIGHT);
-	canvas = new Canvas(world);
-	iprintf("%d\n",__LINE__);
-	theme = new Theme;
-	
-	u16 col = RGB15(0,0,0)|BIT(15);
-	u32 colcol = col | col << 16;
-	swiFastCopy(&colcol, sub_vram, 192*256/2 | COPY_MODE_FILL);
-	
+	canvas = new TobKit::Canvas(gui_main, world, 0, 0, 231, 170,
+			KEY_LEFT | KEY_RIGHT | KEY_UP | KEY_DOWN, DUAL_SCREEN);
+
 	printf("Initializing FAT\n");
-	
+
 	fat_ok = fatInitDefault();
 #ifdef DEBUG
-	if(fat_ok)
+	if (fat_ok)
 		printf("OK\n");
 	else
 		printf("Fail!\n");
 #endif
-	
-	drawMainBg();
+
 	setupGui();
-	
-	ul_firstPaletteColorOpaque=2;
-	imgbg = ulLoadImageFilePNG((const char*)paper2_png, (int)paper2_png_size, UL_IN_VRAM, UL_PF_PAL8);
-	imgbg->stretchX = WORLD_WIDTH+24;
-	imgbg->stretchY = WORLD_HEIGHT+21;
-	
-	//Initialize the text part
-	ulInitText();
-#ifdef DUALSCREEN
-	ulInitDualScreenMode();
-#endif
-	videoSetMode(MODE_3_3D | DISPLAY_BG1_ACTIVE | DISPLAY_BG3_ACTIVE);
-	
-	current_filename = (char*)calloc(1, 256);
-	
-	if(motion_init() != 0)
-	{
+
+	ul_firstPaletteColorOpaque = 2;
+
+
+	if (motion_init() != 0) {
 		dsmotion = true;
-	  
+
 		world->reset(false);
 		request_calibration();
-	}
-	else
-	{
+	} else {
 		dsmotion = false;
 		world->reset(true);
-		
+
 		iprintf("Get a DSMotion. They are fun!\n");
 	}
-	
+
 	irqEnable(IRQ_VBLANK);
-	
-	for(int i=0;i<60;++i)
-		framesdone[i] = true;
-	
+
+	memset(framesdone, 1, sizeof(bool) * 60);
+
 #ifndef DEBUG
 	fadeIn();
 #endif
-	
+
 	irqSet(IRQ_VBLANK, VBlankHandler);
-	
-	BLEND_Y = 0;
-	SUB_BLEND_Y = 0;
-	
+
+	REG_BLDCNT = 0;
+	REG_BLDCNT_SUB = 0;
+
+	// TODO: What the hell's this for?
 	init = false;
-	
-	while(1)
-	{
-		if(state.simulating)
-		{
-			if(accumulated_timesteps < 1)
+
+	while (true) {
+		if (state.simulating) {
+			if (accumulated_timesteps < 1) {
 				swiWaitForVBlank();
-			
+			}
 			accumulated_timesteps = 0;
-			
-			if(dsmotion)
+
+			if (dsmotion) {
 				updateGravity();
-			
+			}
 			world->step();
-		}
-		else
+		} else {
 			swiWaitForVBlank();
-		
+		}
+
 		handleInput();
-		CommandProcessCommands();
 	}
 
 	//Program end - should never get there
 	return 0;
 }
-
